@@ -15,6 +15,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders["appAuthRedirectScheme"] = "com.example.bejam"
     }
 
     buildTypes {
@@ -51,4 +52,8 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    implementation("net.openid:appauth:0.11.1") // Für OAuth2 mit PKCE
+    implementation("com.squareup.okhttp3:okhttp:4.10.0") // Für HTTP-Requests
+    implementation("com.squareup.moshi:moshi:1.13.0") // JSON-Verarbeitung
+    implementation("org.nanohttpd:nanohttpd:2.3.1")
 }
