@@ -9,6 +9,9 @@ import android.util.Log
 import androidx.browser.customtabs.CustomTabsIntent
 import com.example.bejam.AuthCallbackActivity
 import fi.iki.elonen.NanoHTTPD
+import okhttp3.*
+import org.json.JSONObject
+import java.io.IOException
 import java.security.MessageDigest
 import java.security.SecureRandom
 
@@ -61,6 +64,66 @@ class SpotifyAuthManager(private val context: Context) {
         val digest = messageDigest.digest(bytes)
         return Base64.encodeToString(digest, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
     }
+
+    companion object {
+        private const val CLIENT_ID = "f929decae6b84dad9fa7ce752d50c7ec"
+        // refreshAccessToken function defined as a static utility
+        fun refreshAccessToken(context: Context, onComplete: ((Boolean) -> Unit)? = null) {
+            val prefs = context.getSharedPreferences("auth", Context.MODE_PRIVATE)
+            val refreshToken = prefs.getString("refresh_token", null)
+            if (refreshToken == null) {
+                onComplete?.invoke(false)
+                return
+            }
+
+            val client = OkHttpClient()
+            val requestBody = FormBody.Builder()
+                .add("client_id", CLIENT_ID)
+                .add("grant_type", "refresh_token")
+                .add("refresh_token", refreshToken)
+                .build()
+
+            val request = Request.Builder()
+                .url("https://accounts.spotify.com/api/token")
+                .post(requestBody)
+                .build()
+
+            client.newCall(request).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    Log.e("TOKEN_REFRESH", "Refresh failed: ${e.message}")
+                    onComplete?.invoke(false)
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    val responseData = response.body?.string()
+                    if (response.isSuccessful && responseData != null) {
+                        try {
+                            val json = JSONObject(responseData)
+                            val newAccessToken = json.getString("access_token")
+                            val expiresIn = json.getInt("expires_in")
+                            val newExpirationTime = System.currentTimeMillis() + expiresIn * 1000L
+
+                            // Spotify may not return a new refresh token; keep the one you have.
+                            prefs.edit().apply {
+                                putString("access_token", newAccessToken)
+                                putLong("expiration_time", newExpirationTime)
+                                apply()
+                            }
+                            Log.d("TOKEN_REFRESH", "New access token: $newAccessToken, expires in $expiresIn seconds.")
+                            onComplete?.invoke(true)
+                        } catch (e: Exception) {
+                            Log.e("TOKEN_REFRESH", "Error parsing token refresh response: ${e.message}")
+                            onComplete?.invoke(false)
+                        }
+                    } else {
+                        Log.e("TOKEN_REFRESH", "Refresh response not successful: $responseData")
+                        onComplete?.invoke(false)
+                    }
+                }
+            })
+        }
+    }
+
 
     class LocalHttpServer(private val context: Context) : NanoHTTPD(8888) {
         override fun serve(session: IHTTPSession): Response {

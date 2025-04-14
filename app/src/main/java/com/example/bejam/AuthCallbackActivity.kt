@@ -71,17 +71,21 @@ class AuthCallbackActivity : Activity() {
                 if (response.isSuccessful && responseData != null) {
                     val json = JSONObject(responseData)
                     val accessToken = json.getString("access_token")
-                    val refreshToken = json.optString("refresh_token", "not provided")
+                    val refreshToken = json.getString("refresh_token") // sometimes refresh_token is only returned the first time
+                    val expiresIn = json.getInt("expires_in")  // seconds until expiration
+                    val expirationTime = System.currentTimeMillis() + expiresIn * 1000L  // store in milliseconds
 
                     // Log the tokens for debugging purposes
                     Log.d("SPOTIFY_TOKEN", "Access token: $accessToken")
                     Log.d("SPOTIFY_TOKEN", "Refresh token: $refreshToken")
 
-                    // Store the tokens as required by your app (example given for access token)
-                    getSharedPreferences("auth", MODE_PRIVATE)
-                        .edit()
-                        .putString("access_token", accessToken)
-                        .apply()
+                    // Save tokens and expiration in SharedPreferences
+                    getSharedPreferences("auth", MODE_PRIVATE).edit().apply {
+                        putString("access_token", accessToken)
+                        putString("refresh_token", refreshToken)
+                        putLong("expiration_time", expirationTime)
+                        apply()
+                    }
 
                     runOnUiThread {
                         Toast.makeText(this@AuthCallbackActivity, "Login successful!", Toast.LENGTH_SHORT).show()

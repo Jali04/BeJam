@@ -56,4 +56,6 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.10.0") // Für HTTP-Requests
     implementation("com.squareup.moshi:moshi:1.13.0") // JSON-Verarbeitung
     implementation("org.nanohttpd:nanohttpd:2.3.1")
+    implementation("com.github.bumptech.glide:glide:4.11.0")
+    annotationProcessor("com.github.bumptech.glide:compiler:4.11.0")
 }
