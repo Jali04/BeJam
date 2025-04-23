@@ -1,11 +1,16 @@
 package com.example.bejam
 
+import android.Manifest.permission.POST_NOTIFICATIONS
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContentProviderCompat.requireContext
+import androidx.core.content.ContextCompat
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
@@ -54,6 +59,16 @@ class MainActivity : AppCompatActivity() {
         } else {
             // Token is still valid; no need to refresh.
             Log.d("MAIN", "Access token is still valid.")
+        }
+
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(POST_NOTIFICATIONS),
+                1234
+            )
         }
 
 

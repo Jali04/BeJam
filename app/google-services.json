@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1080273787748",
+    "project_id": "sample-firebase-ai-app1-3a3f5",
+    "storage_bucket": "sample-firebase-ai-app1-3a3f5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1080273787748:android:da8efd6b55991f35bfb871",
+        "android_client_info": {
+          "package_name": "com.example.bejam"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAD6rzzbsEOVNeI5yE3U8gxVFmIYkY-hMs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

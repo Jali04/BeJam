@@ -67,11 +67,11 @@ class SpotifyAuthManager(private val context: Context) {
 
     companion object {
         private const val CLIENT_ID = "f929decae6b84dad9fa7ce752d50c7ec"
-        // refreshAccessToken function defined as a static utility
         fun refreshAccessToken(context: Context, onComplete: ((Boolean) -> Unit)? = null) {
             val prefs = context.getSharedPreferences("auth", Context.MODE_PRIVATE)
             val refreshToken = prefs.getString("refresh_token", null)
-            if (refreshToken == null) {
+            if (refreshToken.isNullOrEmpty()) {
+                Log.e("TOKEN_REFRESH", "No refresh token available.")
                 onComplete?.invoke(false)
                 return
             }
@@ -95,29 +95,32 @@ class SpotifyAuthManager(private val context: Context) {
                 }
 
                 override fun onResponse(call: Call, response: Response) {
-                    val responseData = response.body?.string()
-                    if (response.isSuccessful && responseData != null) {
-                        try {
-                            val json = JSONObject(responseData)
-                            val newAccessToken = json.getString("access_token")
-                            val expiresIn = json.getInt("expires_in")
-                            val newExpirationTime = System.currentTimeMillis() + expiresIn * 1000L
+                    // Use the response.use{} block to ensure the response is closed after processing
+                    response.use { resp ->
+                        val responseData = resp.body?.string()
+                        if (resp.isSuccessful && !responseData.isNullOrEmpty()) {
+                            try {
+                                val json = JSONObject(responseData)
+                                val newAccessToken = json.getString("access_token")
+                                val expiresIn = json.getInt("expires_in")
+                                val newExpirationTime = System.currentTimeMillis() + expiresIn * 1000L
 
-                            // Spotify may not return a new refresh token; keep the one you have.
-                            prefs.edit().apply {
-                                putString("access_token", newAccessToken)
-                                putLong("expiration_time", newExpirationTime)
-                                apply()
+                                // Update SharedPreferences with the new access token and expiration time.
+                                prefs.edit().apply {
+                                    putString("access_token", newAccessToken)
+                                    putLong("expiration_time", newExpirationTime)
+                                    apply()
+                                }
+                                Log.d("TOKEN_REFRESH", "New access token: $newAccessToken, expires in $expiresIn seconds.")
+                                onComplete?.invoke(true)
+                            } catch (e: Exception) {
+                                Log.e("TOKEN_REFRESH", "Error parsing token refresh response: ${e.message}")
+                                onComplete?.invoke(false)
                             }
-                            Log.d("TOKEN_REFRESH", "New access token: $newAccessToken, expires in $expiresIn seconds.")
-                            onComplete?.invoke(true)
-                        } catch (e: Exception) {
-                            Log.e("TOKEN_REFRESH", "Error parsing token refresh response: ${e.message}")
+                        } else {
+                            Log.e("TOKEN_REFRESH", "Refresh response not successful: $responseData")
                             onComplete?.invoke(false)
                         }
-                    } else {
-                        Log.e("TOKEN_REFRESH", "Refresh response not successful: $responseData")
-                        onComplete?.invoke(false)
                     }
                 }
             })
