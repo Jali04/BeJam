@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 import android.net.Uri
 import android.util.Base64
 import android.util.Log
+import android.widget.Toast
 import androidx.browser.customtabs.CustomTabsIntent
 import com.example.bejam.AuthCallbackActivity
 import fi.iki.elonen.NanoHTTPD
@@ -22,6 +23,7 @@ class SpotifyAuthManager(private val context: Context) {
     private val authEndpoint = "https://accounts.spotify.com/authorize"
     private val prefs: SharedPreferences = context.getSharedPreferences("auth", Context.MODE_PRIVATE)
     private var server: LocalHttpServer? = null
+
 
     fun startLogin() {
         val codeVerifier = generateCodeVerifier()
@@ -50,6 +52,17 @@ class SpotifyAuthManager(private val context: Context) {
         val customTabsIntent = CustomTabsIntent.Builder().build()
         customTabsIntent.launchUrl(context, authUri)
     }
+    fun logout() {
+        prefs.edit()
+            .remove("access_token")
+            .remove("refresh_token")
+            .remove("expiration_time")
+            .remove("code_verifier")
+            .apply()
+
+        Toast.makeText(context, "Logged out of Spotify", Toast.LENGTH_SHORT).show()
+    }
+
 
     private fun generateCodeVerifier(): String {
         val secureRandom = SecureRandom()

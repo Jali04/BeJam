@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.bumptech.glide.Glide
@@ -21,36 +20,54 @@ class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
 
+    // we'll reuse this to start login & to logout
+    private lateinit var authManager: SpotifyAuthManager
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        val homeViewModel = ViewModelProvider(this)[HomeViewModel::class.java]
+        // usual ViewModel setup (if you still need it)
+        ViewModelProvider(this)[HomeViewModel::class.java]
+
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
+        authManager = SpotifyAuthManager(requireContext())
         val root: View = binding.root
 
-        // Check if user is logged in by seeing if an access token is stored.
+        // see if we're already logged in
         val prefs = requireContext().getSharedPreferences("auth", Context.MODE_PRIVATE)
         val accessToken = prefs.getString("access_token", null)
         if (accessToken != null) {
-            // User already logged in, so hide the login button and fetch the profile.
+            // logged in → hide Login, show Logout, fetch profile
             binding.spotifyLoginButton.visibility = View.GONE
+            binding.spotifyLogoutButton.visibility = View.VISIBLE
             fetchUserProfile(accessToken)
         } else {
-            // Show the login button if no token is available.
+            // not logged in → show Login, hide Logout
             binding.spotifyLoginButton.visibility = View.VISIBLE
+            binding.spotifyLogoutButton.visibility = View.GONE
         }
 
+        // Login flow
         binding.spotifyLoginButton.setOnClickListener {
-            val authManager = SpotifyAuthManager(requireContext())
-            authManager.startLogin() // Launches the Custom Tab for Spotify login.
+            authManager.startLogin()
+        }
+
+        // Logout flow
+        binding.spotifyLogoutButton.setOnClickListener {
+            authManager.logout()
+            // switch UI back
+            binding.spotifyLoginButton.visibility = View.VISIBLE
+            binding.spotifyLogoutButton.visibility = View.GONE
+            // clear profile pic
+            binding.profileImageView.setImageResource(R.drawable.placeholder_profile)
         }
 
         return root
     }
 
-    // Place the fetchUserProfile function below onCreateView.
+    // unchanged
     private fun fetchUserProfile(accessToken: String) {
         val client = OkHttpClient()
         val request = Request.Builder()
@@ -60,21 +77,19 @@ class HomeFragment : Fragment() {
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-                // Optionally log the error
+                // log if you want
             }
 
             override fun onResponse(call: Call, response: Response) {
-                val responseData = response.body?.string()
-                if (response.isSuccessful && responseData != null) {
+                val data = response.body?.string()
+                if (response.isSuccessful && !data.isNullOrEmpty()) {
                     try {
-                        val json = JSONObject(responseData)
-                        // Check if there's at least one profile image.
-                        val imageUrl = if (json.has("images") && json.getJSONArray("images").length() > 0) {
-                            json.getJSONArray("images").getJSONObject(0).getString("url")
-                        } else {
-                            null
-                        }
-                        // Update UI on the main thread
+                        val json = JSONObject(data)
+                        val imageUrl = json.optJSONArray("images")
+                            ?.takeIf { it.length() > 0 }
+                            ?.getJSONObject(0)
+                            ?.optString("url")
+
                         requireActivity().runOnUiThread {
                             if (!imageUrl.isNullOrEmpty()) {
                                 Glide.with(requireContext())
@@ -82,15 +97,11 @@ class HomeFragment : Fragment() {
                                     .placeholder(R.drawable.placeholder_profile)
                                     .into(binding.profileImageView)
                             } else {
-                                // Set a default image if no profile picture is found.
-                                binding.profileImageView.setImageResource(R.drawable.placeholder_profile)
+                                binding.profileImageView
+                                    .setImageResource(R.drawable.placeholder_profile)
                             }
                         }
-                    } catch (e: Exception) {
-                        // Log exception if needed
-                    }
-                } else {
-                    // Log error response if needed.
+                    } catch (_: Exception) { /**/ }
                 }
             }
         })
