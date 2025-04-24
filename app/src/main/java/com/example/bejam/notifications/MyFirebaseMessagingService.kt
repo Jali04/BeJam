@@ -1,8 +1,12 @@
 package com.example.bejam.notifications
 
 import android.annotation.SuppressLint
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -24,9 +28,29 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         sendRegistrationToServer(token)
     }
 
+    companion object {
+        private const val CHANNEL_ID = "daily_notification_channel"
+        private fun ensureChannel(ctx: Context) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val nm = ctx.getSystemService(NotificationManager::class.java)
+                if (nm.getNotificationChannel(CHANNEL_ID) == null) {
+                    nm.createNotificationChannel(
+                        NotificationChannel(
+                            CHANNEL_ID,
+                            "Daily Song Reminder",
+                            NotificationManager.IMPORTANCE_HIGH
+                        ).apply {
+                            description = "Channel for BeJam daily reminders"
+                        }
+                    )
+                }
+            }
+        }
+    }
+
     @SuppressLint("MissingPermission")
-    override fun onMessageReceived(remoteMessage: RemoteMessage) {
-        // 2) Wenn eine Nachricht ankommt, baue deine Notification:
+    override fun onMessageReceived(msg: RemoteMessage) {
+        ensureChannel(this)                // ← make sure it exists
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
@@ -34,17 +58,15 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             this, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-
-        val notification = NotificationCompat.Builder(this, "daily_notification_channel")
+        val n = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notifications_black_24dp)
-            .setContentTitle(remoteMessage.notification?.title ?: "BeJam")
-            .setContentText(remoteMessage.notification?.body ?: "")
+            .setContentTitle(msg.notification?.title ?: "BeJam")
+            .setContentText(msg.notification?.body  ?: "")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pi)
             .build()
-
-        NotificationManagerCompat.from(this).notify(1001, notification)
+        NotificationManagerCompat.from(this).notify(1001, n)
     }
 
     private fun sendRegistrationToServer(token: String) {
