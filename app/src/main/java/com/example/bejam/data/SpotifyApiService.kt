@@ -11,6 +11,7 @@ interface SpotifyApiService {
         @Header("Authorization") bearer: String,
         @Query("q") query: String,
         @Query("type") type: String = "track",
-        @Query("limit") limit: Int = 20
+        @Query("limit") limit: Int = 20,
+        @Query("market") market: String = "from_token"
     ): TrackSearchResponse
 }

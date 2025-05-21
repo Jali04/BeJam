@@ -3,20 +3,50 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/mobile_navigation"
-    app:startDestination="@+id/navigation_home">
+    app:startDestination="@id/navigation_home">
 
+    <!-- Home screen -->
     <fragment
         android:id="@+id/navigation_home"
         android:name="com.example.bejam.ui.home.HomeFragment"
         android:label="@string/title_home"
-        tools:layout="@layout/fragment_home" />
+        tools:layout="@layout/fragment_home" >
 
+        <!-- action from Home → Share -->
+        <action
+            android:id="@+id/actionHomeFragmentToShareFragment"
+            app:destination="@id/shareFragment" />
+    </fragment>
+
+    <!-- Define the ShareFragment destination -->
+    <fragment
+        android:id="@+id/shareFragment"
+        android:name="com.example.bejam.ui.home.ShareFragment"
+        android:label="Share Song"
+        tools:layout="@layout/fragment_share">
+        <!-- declare the args it accepts -->
+        <argument
+            android:name="trackId"
+            app:argType="string" />
+        <argument
+            android:name="trackName"
+            app:argType="string" />
+        <argument
+            android:name="artistNames"
+            app:argType="string" />
+        <argument
+            android:name="imageUrl"
+            app:argType="string" />
+    </fragment>
+
+    <!-- Friends screen -->
     <fragment
         android:id="@+id/navigation_friends"
         android:name="com.example.bejam.ui.friends.FriendsFragment"
         android:label="@string/title_friends"
         tools:layout="@layout/fragment_friends" />
 
+    <!-- Profile screen -->
     <fragment
         android:id="@+id/navigation_profile"
         android:name="com.example.bejam.ui.profile.ProfileFragment"

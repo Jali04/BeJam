@@ -1,5 +1,7 @@
 package com.example.bejam.ui.home
 
+import android.content.Intent
+import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -14,7 +16,8 @@ import com.example.bejam.R
 import com.example.bejam.data.model.Track
 
 class TrackAdapter(
-    private val onPlayClick: (Track) -> Unit
+    private val onPlayClick: (Track) -> Unit,
+    private val onSelectClick: (Track) -> Unit
 ): ListAdapter<Track, TrackAdapter.ViewHolder>(DiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
@@ -26,10 +29,18 @@ class TrackAdapter(
     }
 
     inner class ViewHolder(v: View): RecyclerView.ViewHolder(v) {
-        private val album     = v.findViewById<ImageView>(R.id.albumImage)
-        private val name      = v.findViewById<TextView>(R.id.trackName)
-        private val artist    = v.findViewById<TextView>(R.id.artistName)
-        private val playButton= v.findViewById<ImageButton>(R.id.playPreviewBtn)
+        private val album = v.findViewById<ImageView>(R.id.albumImage)
+        private val name = v.findViewById<TextView>(R.id.trackName)
+        private val artist = v.findViewById<TextView>(R.id.artistName)
+        private val playButton = v.findViewById<ImageButton>(R.id.playPreviewBtn)
+        private val openButton = v.findViewById<ImageButton>(R.id.openButton)
+
+        init {
+            v.setOnClickListener {
+                val track = getItem(bindingAdapterPosition)
+                onSelectClick(track)
+            }
+        }
 
         fun bind(track: Track) {
             name.text = track.name
@@ -38,7 +49,25 @@ class TrackAdapter(
                 .load(track.album.images.firstOrNull()?.url)
                 .placeholder(R.drawable.placeholder_profile)
                 .into(album)
-            playButton.setOnClickListener { onPlayClick(track) }
+            if (track.preview_url != null) {
+                playButton.visibility = View.VISIBLE
+                openButton.visibility = View.GONE
+                playButton.isEnabled = true
+                playButton.setOnClickListener { onPlayClick(track) }
+            } else {
+                playButton.visibility = View.GONE
+                openButton.visibility = View.VISIBLE
+                openButton.isEnabled = true
+                openButton.setOnClickListener {
+                    val context = itemView.context
+                    // deep-link into the Spotify app
+                    val intent = Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("spotify:track:${track.id}")
+                    )
+                    context.startActivity(intent)
+                }
+            }
         }
     }
 
