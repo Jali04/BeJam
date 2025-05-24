@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -18,6 +19,7 @@ import androidx.navigation.ui.setupWithNavController
 import com.example.bejam.auth.SpotifyAuthManager
 import com.example.bejam.auth.SpotifyAuthManager.Companion.refreshAccessToken
 import com.example.bejam.databinding.ActivityMainBinding
+import com.google.firebase.auth.FirebaseAuth
 
 class MainActivity : AppCompatActivity() {
 
@@ -25,6 +27,20 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // 1) Ensure we have a Firebase user (anonymous if nobody’s signed in)
+        val auth = FirebaseAuth.getInstance()
+        if (auth.currentUser == null) {
+            auth.signInAnonymously()
+                .addOnSuccessListener { result ->
+                    Log.d("AUTH", "Signed in anonymously as ${result.user!!.uid}")
+                    // now you're free to talk to Firestore / FriendsViewModel safely
+                }
+                .addOnFailureListener { e ->
+                    Log.e("AUTH", "Anonymous sign-in failed", e)
+                    Toast.makeText(this, "Auth error: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+        }
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)

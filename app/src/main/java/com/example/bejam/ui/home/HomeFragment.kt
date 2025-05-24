@@ -104,17 +104,19 @@ class HomeFragment : Fragment() {
                                     binding.tracksRecyclerView.visibility = View.VISIBLE
                                 }
                             } else {
-                                Toast.makeText(
-                                    requireContext(),
-                                    "Session expired. Please log in again.",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                                authManager.logout()
-                                binding.spotifyLoginButton.visibility = View.VISIBLE
-                                binding.spotifyLogoutButton.visibility = View.GONE
-                                binding.profileImageView.setImageResource(
-                                    com.example.bejam.R.drawable.placeholder_profile
-                                )
+                                requireActivity().runOnUiThread {
+                                    Toast.makeText(
+                                        requireContext(),
+                                        "Session expired. Please log in again.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    authManager.logout()
+                                    binding.spotifyLoginButton.visibility = View.VISIBLE
+                                    binding.spotifyLogoutButton.visibility = View.GONE
+                                    binding.profileImageView.setImageResource(
+                                        com.example.bejam.R.drawable.placeholder_profile
+                                    )
+                                }
                             }
                         }
                     } else {

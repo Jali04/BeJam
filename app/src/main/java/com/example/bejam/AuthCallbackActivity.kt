@@ -5,6 +5,19 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
+import com.example.bejam.data.RetrofitClient
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.tasks.await
 import okhttp3.*
 import org.json.JSONObject
 import java.io.IOException
@@ -87,12 +100,46 @@ class AuthCallbackActivity : Activity() {
                         apply()
                     }
 
-                    runOnUiThread {
-                        Toast.makeText(this@AuthCallbackActivity, "Login successful!", Toast.LENGTH_SHORT).show()
-                        startActivity(Intent(this@AuthCallbackActivity, MainActivity::class.java))
-                        finish()
-                    }
+                    val firebaseUid = FirebaseAuth.getInstance().currentUser?.uid
+                    if (firebaseUid != null) {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            try {
+                                val profile = RetrofitClient.spotifyApi
+                                    .getCurrentUserProfile("Bearer $accessToken")
 
+                                Firebase.firestore
+                                    .collection("user_profiles")
+                                    .document(firebaseUid)
+                                    .set(mapOf(
+                                        "spotifyId" to profile.id,
+                                        "displayName" to (profile.display_name ?: ""),
+                                        "avatarUrl" to (profile.images.firstOrNull()?.url ?: "")
+                                    ), SetOptions.merge())
+                                    .await()
+                                Log.d("FIRESTORE", "Profile mapping saved")
+                            } catch (e: Exception) {
+                                Log.e("FIRESTORE", "Failed to save mapping", e)
+                            }
+
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(
+                                    this@AuthCallbackActivity,
+                                    "Login successful!",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                startActivity(
+                                    Intent(this@AuthCallbackActivity, MainActivity::class.java)
+                                )
+                                finish()
+                            }
+                        }
+                    } else {
+                        runOnUiThread {
+                            Toast.makeText(this@AuthCallbackActivity, "Login successful!", Toast.LENGTH_SHORT).show()
+                            startActivity(Intent(this@AuthCallbackActivity, MainActivity::class.java))
+                            finish()
+                        }
+                    }
                 } else {
                     runOnUiThread {
                         Toast.makeText(this@AuthCallbackActivity, "Token ungültig", Toast.LENGTH_SHORT).show()
