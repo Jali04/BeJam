@@ -7,7 +7,14 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.bumptech.glide.Glide
+import com.example.bejam.data.model.DailySelection
 import com.example.bejam.databinding.FragmentShareBinding
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class ShareFragment : Fragment() {
     private var _binding: FragmentShareBinding? = null
@@ -30,10 +37,32 @@ class ShareFragment : Fragment() {
 
         binding.postButton.setOnClickListener {
             val comment = binding.commentEditText.text.toString().trim()
-            // TODO: call your repository to post today’s selection
-            Toast.makeText(requireContext(), "Posted “${args.trackName}”!", Toast.LENGTH_SHORT).show()
-            // then pop back:
-            findNavController().popBackStack()
+            val firebaseUser = FirebaseAuth.getInstance().currentUser
+            if (firebaseUser != null) {
+                val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+                val docId = "${firebaseUser.uid}_$today"
+
+                val selection = DailySelection(
+                    userId = firebaseUser.uid,
+                    songId = args.trackId, // pass this in navArgs!
+                    songName = args.trackName,
+                    artist = args.artistNames,
+                    imageUrl = args.imageUrl,
+                    comment = comment,
+                    timestamp = System.currentTimeMillis()
+                )
+
+                Firebase.firestore.collection("daily_selections")
+                    .document(docId)
+                    .set(selection)
+                    .addOnSuccessListener {
+                        Toast.makeText(requireContext(), "Posted “${args.trackName}”!", Toast.LENGTH_SHORT).show()
+                        findNavController().popBackStack()
+                    }
+                    .addOnFailureListener {
+                        Toast.makeText(requireContext(), "Failed to post selection.", Toast.LENGTH_SHORT).show()
+                    }
+            }
         }
     }
 

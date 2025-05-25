@@ -1,73 +1,89 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
+<LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".ui.home.HomeFragment">
+    android:orientation="vertical"
+    android:background="#18151c">
 
-    <!-- 1) Search bar at the very top -->
+    <!-- Spotify Login/Logout buttons (optional, place where you want) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end"
+        android:paddingEnd="16dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp">
 
-    <!-- 2) RecyclerView below the search bar, above the login/logout UI -->
+        <ImageView
+            android:id="@+id/profileImageView"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:scaleType="centerCrop"
+            android:background="@drawable/circle_bg"
+            android:layout_gravity="center_vertical"
+            android:layout_marginEnd="8dp" />
 
+        <Button
+            android:id="@+id/spotifyLoginButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="LOGIN TO SPOTIFY"
+            android:visibility="gone"
+            />
+
+        <Button
+            android:id="@+id/spotifyLogoutButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="LOGOUT OF SPOTIFY"
+            android:visibility="gone"
+            />
+    </LinearLayout>
+
+    <!-- Search bar -->
     <EditText
         android:id="@+id/searchEditText"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="68dp"
-        android:hint="Search tracks…"
-        android:imeOptions="actionSearch"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:hint="Search for a track"
+        android:inputType="text"
+        android:padding="12dp"
+        android:textColor="#fff"
+        android:textColorHint="#aaa"
+        android:background="@android:color/transparent"
+        />
 
+    <!-- Search results -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/tracksRecyclerView"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:clipToPadding="false"/>
+
+    <!-- Feed Title -->
+    <TextView
+        android:id="@+id/feedTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Today's Posts"
+        android:textStyle="bold"
+        android:textSize="18sp"
+        android:textColor="#fff"
+        android:padding="12dp"
+        android:background="#241e31"/>
+
+    <!-- Feed of posts -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/feedRecyclerView"
+        android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/searchEditText"
-        app:layout_constraintBottom_toTopOf="@id/spotifyLoginButton"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+        android:layout_weight="1"
+        android:paddingTop="4dp"
+        android:paddingBottom="8dp"
+        android:clipToPadding="false"/>
 
-    <Button
-        android:id="@+id/spotifyLoginButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Login with Spotify"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <ImageView
-        android:id="@+id/profileImageView"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginEnd="16dp"
-        android:scaleType="centerCrop"
-        android:src="@drawable/placeholder_profile"
-        android:clipToOutline="true"
-        android:background="@drawable/circular_bg"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <Button
-        android:id="@+id/spotifyLogoutButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="LOGOUT OF SPOTIFY"
-        android:visibility="gone"
-        app:layout_constraintTop_toTopOf="@id/profileImageView"
-        app:layout_constraintBottom_toBottomOf="@id/profileImageView"
-        app:layout_constraintEnd_toStartOf="@id/profileImageView"
-        android:layout_marginEnd="8dp"
-        android:layout_marginTop="0dp"
-        android:layout_marginBottom="0dp"/>
-
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</LinearLayout>

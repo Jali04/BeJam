@@ -3,4 +3,9 @@
     <string name="title_home">home</string>
     <string name="title_friends">friends</string>
     <string name="title_profile">profile</string>
+    <string name="album_cover">Album cover</string>
+    <string name="friend_username">Friend</string>
+    <string name="upvote">Upvote</string>
+    <string name="logout">Logout</string>
+    <string name="login">Login</string>
 </resources>
