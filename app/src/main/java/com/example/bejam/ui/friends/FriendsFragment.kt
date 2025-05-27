@@ -54,9 +54,9 @@ class FriendsFragment : Fragment() {
 
         // 1) “Send request” button
         binding.addFriendButton.setOnClickListener {
-            val toUid = binding.addFriendEditText.text.toString().trim()
-            if (toUid.isNotEmpty()) {
-                vm.sendRequest(toUid)
+            val input = binding.addFriendEditText.text.toString().trim()
+            if (input.isNotEmpty()) {
+                vm.sendRequest(input)
                 binding.addFriendEditText.text?.clear()
             }
         }

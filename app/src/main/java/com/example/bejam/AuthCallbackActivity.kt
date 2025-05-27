@@ -113,7 +113,8 @@ class AuthCallbackActivity : Activity() {
                                     .set(mapOf(
                                         "spotifyId" to profile.id,
                                         "displayName" to (profile.display_name ?: ""),
-                                        "avatarUrl" to (profile.images.firstOrNull()?.url ?: "")
+                                        "avatarUrl" to (profile.images.firstOrNull()?.url ?: ""),
+                                        "email" to (profile.email ?: "")
                                     ), SetOptions.merge())
                                     .await()
                                 Log.d("FIRESTORE", "Profile mapping saved")

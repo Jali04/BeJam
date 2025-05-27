@@ -6,6 +6,8 @@ import com.example.bejam.data.FirestoreManager
 import com.example.bejam.data.FirestoreManager.Request
 import com.example.bejam.data.FriendRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.lang.IllegalStateException
@@ -44,13 +46,71 @@ class FriendsViewModel(app: Application) : AndroidViewModel(app) {
     val error: LiveData<String?> = _error
 
     /** Send a new request */
-    fun sendRequest(toUid: String) {
-        FirestoreManager.sendRequest(currentUid, toUid)
-            .addOnSuccessListener {
-                _requestSent.value = true
+    fun sendRequest(searchInput: String) {
+        // Schritt 1: In user_profiles nach Spotify-ID, displayName ODER E-Mail suchen
+        val firestore = Firebase.firestore
+
+        // Du könntest auch displayName oder email durchsuchen, hier als Beispiel NUR spotifyId
+        firestore.collection("user_profiles")
+            .whereEqualTo("spotifyId", searchInput)
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                if (querySnapshot.documents.isNotEmpty()) {
+                    // Nutzer gefunden!
+                    val targetDoc = querySnapshot.documents.first()
+                    val toUid = targetDoc.id // Firestore-Dokument-ID = Firebase-UID
+
+                    // Jetzt wie gehabt FriendRequest schicken!
+                    FirestoreManager.sendRequest(currentUid, toUid)
+                        .addOnSuccessListener {
+                            _requestSent.value = true
+                        }
+                        .addOnFailureListener {
+                            _requestSent.value = false
+                        }
+                } else {
+                    // Optional: Suche auch nach displayName oder email, falls kein Treffer
+                    firestore.collection("user_profiles")
+                        .whereEqualTo("displayName", searchInput)
+                        .get()
+                        .addOnSuccessListener { snapshot2 ->
+                            if (snapshot2.documents.isNotEmpty()) {
+                                val targetDoc2 = snapshot2.documents.first()
+                                val toUid2 = targetDoc2.id
+                                FirestoreManager.sendRequest(currentUid, toUid2)
+                                    .addOnSuccessListener {
+                                        _requestSent.value = true
+                                    }
+                                    .addOnFailureListener {
+                                        _requestSent.value = false
+                                    }
+                            } else {
+                                // Noch kein Treffer: Suche per E-Mail (falls du E-Mail speicherst)
+                                firestore.collection("user_profiles")
+                                    .whereEqualTo("email", searchInput)
+                                    .get()
+                                    .addOnSuccessListener { snapshot3 ->
+                                        if (snapshot3.documents.isNotEmpty()) {
+                                            val targetDoc3 = snapshot3.documents.first()
+                                            val toUid3 = targetDoc3.id
+                                            FirestoreManager.sendRequest(currentUid, toUid3)
+                                                .addOnSuccessListener {
+                                                    _requestSent.value = true
+                                                }
+                                                .addOnFailureListener {
+                                                    _requestSent.value = false
+                                                }
+                                        } else {
+                                            // Kein User gefunden!
+                                            _error.value = "Kein Nutzer gefunden mit dieser Spotify-ID, Username oder E-Mail."
+                                        }
+                                    }
+                            }
+                        }
+                }
             }
-            .addOnFailureListener {
-                _requestSent.value = false
+            .addOnFailureListener { e ->
+                _error.value = "Fehler bei der Suche: ${e.message}"
             }
     }
 
