@@ -4,5 +4,5 @@ data class SpotifyUserProfile(
     val id: String,
     val display_name: String?,
     val images: List<Image>,
-    val email: String
+    val email: String? = null
 )

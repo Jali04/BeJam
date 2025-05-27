@@ -45,7 +45,7 @@ class FriendRepository(context: Context) {
             id = profile.id,
             username = profile.display_name ?: profile.id,
             profileImageUrl = profile.images.firstOrNull()?.url,
-            email = profile.email
+            email = null
         )
         withContext(Dispatchers.IO) { dao.upsert(friend) }
         return true

@@ -7,6 +7,6 @@ import androidx.room.PrimaryKey
 data class Friend(
     @PrimaryKey val id: String,            // e.g. user’s unique ID from your backend
     val username: String,
-    val email: String?,
+    val email: String? = null,
     val profileImageUrl: String? = null
 )
