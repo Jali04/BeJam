@@ -24,8 +24,8 @@ interface SpotifyApiService {
     suspend fun followUsers(
         @Header("Authorization") bearer: String,
         @Query("type") type: String = "user",
-        @Query("ids") ids: String                 // comma-separated Spotify user IDs
-    )
+        @Query("ids") ids: String
+    ): retrofit2.Response<Unit>
 
     /** Unfollow one or more Spotify users */
     @DELETE("v1/me/following")

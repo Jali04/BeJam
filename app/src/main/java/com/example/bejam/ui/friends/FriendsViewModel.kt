@@ -130,10 +130,17 @@ class FriendsViewModel(app: Application) : AndroidViewModel(app) {
             _error.value = null
 
             // 3) If accepted, follow + persist via repository
-            if (accept) {
-                FriendRepository
-                    .getInstance(getApplication())
-                    .addFriend(req.fromUid)
+            val success = FriendRepository
+                .getInstance(getApplication())
+                .addFriend(req.fromUid)
+
+            if (success) {
+                _error.postValue(null) // optional, um Error zu resetten
+                // Erfolg nach außen geben:
+                _requestSent.postValue(true)
+            } else {
+                _error.postValue("Fehler beim Folgen auf Spotify!")
+                _requestSent.postValue(false)
             }
         } catch (e: Exception) {
             _error.value = e.message
