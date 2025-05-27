@@ -7,6 +7,8 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.bejam.databinding.ItemRequestBinding
 import com.example.bejam.data.FirestoreManager
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 
 class RequestAdapter(
     private val onRespond: (FirestoreManager.Request, Boolean) -> Unit
@@ -22,10 +24,23 @@ class RequestAdapter(
         : RecyclerView.ViewHolder(b.root) {
 
         fun bind(req: FirestoreManager.Request) {
-            b.requestFrom.text = req.fromUid
+            // Anstatt einfach nur req.fromUid:
+            val firestore = Firebase.firestore
+            firestore.collection("user_profiles")
+                .document(req.fromUid)
+                .get()
+                .addOnSuccessListener { doc ->
+                    val name = doc.getString("displayName") ?: doc.getString("spotifyId") ?: req.fromUid
+                    b.requestFrom.text = name
+                }
+                .addOnFailureListener {
+                    b.requestFrom.text = req.fromUid // Fallback
+                }
+            // Buttons bleiben wie gehabt
             b.acceptBtn.setOnClickListener { onRespond(req, true) }
             b.rejectBtn.setOnClickListener { onRespond(req, false) }
         }
+
     }
 
     class Diff : DiffUtil.ItemCallback<FirestoreManager.Request>() {
