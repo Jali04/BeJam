@@ -2,8 +2,11 @@ package com.example.bejam.data
 
 import android.content.Context
 import com.example.bejam.data.model.Friend
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 class FriendRepository(context: Context) {
@@ -15,27 +18,33 @@ class FriendRepository(context: Context) {
     fun getAllFriends(): Flow<List<Friend>> = dao.getAllFriends()
 
     /** Follow on Spotify, fetch profile, save as Friend */
-    suspend fun addFriend(spotifyUserId: String) {
-        val token = prefs.getString("access_token","")!!
+    suspend fun addFriend(friendUid: String) {
+        val token = prefs.getString("access_token", "")!!
         val bearer = "Bearer $token"
 
-        // 1) follow on Spotify
+        // 1. UserProfile-Dokument holen, Spotify-ID extrahieren
+        val doc = Firebase.firestore.collection("user_profiles")
+            .document(friendUid)
+            .get()
+            .await()
+        val spotifyUserId = doc.getString("spotifyId") ?: return
+
+        // 2. Folgen auf Spotify
         api.followUsers(bearer, ids = spotifyUserId)
 
-        // 2) fetch their profile for display
+        // 3. Profil von Spotify laden
         val profile = api.getUserProfile(bearer, spotifyUserId)
 
-        // 3) persist locally
+        // 4. Lokal speichern
         val friend = Friend(
             id = profile.id,
             username = profile.display_name ?: profile.id,
             profileImageUrl = profile.images.firstOrNull()?.url,
-            email = TODO()
+            email = profile.email
         )
-        withContext(Dispatchers.IO) {
-            dao.upsert(friend)
-        }
+        withContext(Dispatchers.IO) { dao.upsert(friend) }
     }
+
 
     /** Unfollow on Spotify, then delete locally */
     suspend fun removeFriend(spotifyUserId: String) {

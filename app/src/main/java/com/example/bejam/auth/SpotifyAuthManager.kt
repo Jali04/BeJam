@@ -44,7 +44,10 @@ class SpotifyAuthManager(private val context: Context) {
             .appendQueryParameter("redirect_uri", redirectUri)
             .appendQueryParameter("code_challenge_method", "S256")
             .appendQueryParameter("code_challenge", codeChallenge)
-            .appendQueryParameter("scope", "user-read-private user-read-email user-library-modify user-library-read user-follow-read user-follow-modify")
+            .appendQueryParameter(
+                "scope",
+                "user-read-private user-read-email user-library-modify user-library-read user-follow-modify user-follow-read"
+            )
             .build()
 
         Log.d("SPOTIFY_AUTH_URL", "Auth URL: $authUri")
