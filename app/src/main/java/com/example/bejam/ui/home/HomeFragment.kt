@@ -15,6 +15,8 @@ import androidx.lifecycle.asLiveData
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.bumptech.glide.Glide
+import com.example.bejam.R
 import com.example.bejam.auth.SpotifyAuthManager
 import com.example.bejam.data.FriendRepository
 import com.example.bejam.data.RetrofitClient
@@ -28,7 +30,10 @@ import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import okhttp3.*
+import org.json.JSONObject
 import retrofit2.HttpException
+import java.io.IOException
 
 class HomeFragment : Fragment() {
 
@@ -205,8 +210,42 @@ class HomeFragment : Fragment() {
     }
 
     private fun fetchUserProfile(accessToken: String) {
-        // unchanged existing code
-        // …
+        val client = OkHttpClient()
+        val request = Request.Builder()
+            .url("https://api.spotify.com/v1/me")
+            .addHeader("Authorization", "Bearer $accessToken")
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                // log if you want
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                val data = response.body?.string()
+                if (response.isSuccessful && !data.isNullOrEmpty()) {
+                    try {
+                        val json = JSONObject(data)
+                        val imageUrl = json.optJSONArray("images")
+                            ?.takeIf { it.length() > 0 }
+                            ?.getJSONObject(0)
+                            ?.optString("url")
+
+                        requireActivity().runOnUiThread {
+                            if (!imageUrl.isNullOrEmpty()) {
+                                Glide.with(requireContext())
+                                    .load(imageUrl)
+                                    .placeholder(R.drawable.placeholder_profile)
+                                    .into(binding.profileImageView)
+                            } else {
+                                binding.profileImageView
+                                    .setImageResource(R.drawable.placeholder_profile)
+                            }
+                        }
+                    } catch (_: Exception) { /**/ }
+                }
+            }
+        })
     }
 
     override fun onDestroyView() {
