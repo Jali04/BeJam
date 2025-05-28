@@ -21,14 +21,15 @@ import com.example.bejam.auth.SpotifyAuthManager
 import com.example.bejam.data.FriendRepository
 import com.example.bejam.data.RetrofitClient
 import com.example.bejam.data.model.DailySelection
-import com.example.bejam.data.model.Track
 import com.example.bejam.databinding.FragmentHomeBinding
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.tasks.await
 import okhttp3.*
 import org.json.JSONObject
@@ -111,54 +112,64 @@ class HomeFragment : Fragment() {
                 binding.tracksRecyclerView.visibility = View.GONE
                 return@addTextChangedListener
             }
-            lifecycleScope.launch {
+            lifecycleScope.launch(Dispatchers.IO) {
                 val token = prefs.getString("access_token", "") ?: ""
                 try {
                     val resp = RetrofitClient.spotifyApi.searchTracks("Bearer $token", q)
-                    adapter.submitList(resp.tracks.items)
-                    binding.tracksRecyclerView.visibility = View.VISIBLE
+                    withContext(Dispatchers.Main) {
+                        adapter.submitList(resp.tracks.items)
+                        binding.tracksRecyclerView.visibility = View.VISIBLE
+                    }
                 } catch (e: HttpException) {
                     val code = e.code()
                     val err = e.response()?.errorBody()?.string()
                     Log.e("SpotifySearch", "HTTP $code: $err")
                     if (code == 401) {
-                        SpotifyAuthManager.refreshAccessToken(requireContext()) { success ->
-                            if (success) {
-                                lifecycleScope.launch {
-                                    val newToken = prefs.getString("access_token", "") ?: ""
-                                    val retry = RetrofitClient.spotifyApi
-                                        .searchTracks("Bearer $newToken", q)
-                                    adapter.submitList(retry.tracks.items)
-                                    binding.tracksRecyclerView.visibility = View.VISIBLE
-                                }
-                            } else {
+                        withContext(Dispatchers.Main) {
+                            SpotifyAuthManager.refreshAccessToken(requireContext()) { success ->
                                 requireActivity().runOnUiThread {
-                                    Toast.makeText(
-                                        requireContext(),
-                                        "Session expired. Please log in again.",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                    authManager.logout()
-                                    binding.spotifyLoginButton.visibility = View.VISIBLE
-                                    binding.spotifyLogoutButton.visibility = View.GONE
-                                    binding.profileImageView.setImageResource(
-                                        com.example.bejam.R.drawable.placeholder_profile
-                                    )
+                                    if (success) {
+                                        lifecycleScope.launch(Dispatchers.IO) {
+                                            val newToken = prefs.getString("access_token", "") ?: ""
+                                            val retry = RetrofitClient.spotifyApi
+                                                .searchTracks("Bearer $newToken", q)
+                                            withContext(Dispatchers.Main) {
+                                                adapter.submitList(retry.tracks.items)
+                                                binding.tracksRecyclerView.visibility = View.VISIBLE
+                                            }
+                                        }
+                                    } else {
+                                        Toast.makeText(
+                                            requireContext(),
+                                            "Session expired. Please log in again.",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                        authManager.logout()
+                                        binding.spotifyLoginButton.visibility = View.VISIBLE
+                                        binding.spotifyLogoutButton.visibility = View.GONE
+                                        binding.profileImageView.setImageResource(
+                                            com.example.bejam.R.drawable.placeholder_profile
+                                        )
+                                    }
                                 }
                             }
                         }
                     } else {
-                        Toast.makeText(
-                            requireContext(),
-                            "Search failed: HTTP $code", Toast.LENGTH_SHORT
-                        ).show()
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                requireContext(),
+                                "Search failed: HTTP $code", Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     }
                 } catch (e: Exception) {
-                    Toast.makeText(
-                        requireContext(),
-                        "Search error: ${e.localizedMessage}",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            requireContext(),
+                            "Search error: ${e.localizedMessage}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
             }
         })
@@ -191,7 +202,7 @@ class HomeFragment : Fragment() {
     }
 
     private fun loadFeed(userIds: Collection<String>) {
-        lifecycleScope.launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
             val db = Firebase.firestore
             val selections = mutableListOf<DailySelection>()
@@ -205,7 +216,9 @@ class HomeFragment : Fragment() {
                     if (doc.id.endsWith(today)) sel else null
                 })
             }
-            feedAdapter.submitList(selections.sortedByDescending { it.timestamp })
+            withContext(Dispatchers.Main) {
+                feedAdapter.submitList(selections.sortedByDescending { it.timestamp })
+            }
         }
     }
 
