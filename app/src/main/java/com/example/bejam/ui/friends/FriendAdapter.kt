@@ -41,7 +41,7 @@ class FriendAdapter : ListAdapter<Friend, FriendAdapter.VH>(Diff()) {
                     val displayName = doc.getString("displayName") ?: friendUid
                     b.username.text = displayName
 
-                    val photoUrl = doc.getString("photoUrl")
+                    val photoUrl = doc.getString("avatarUrl")
                         ?: doc.getString("spotifyPhotoUrl")
                     if (!photoUrl.isNullOrEmpty()) {
                         Glide.with(b.avatar.context)

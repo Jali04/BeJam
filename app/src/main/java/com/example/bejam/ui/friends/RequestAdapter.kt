@@ -41,7 +41,7 @@ class RequestAdapter(
                     b.requestFrom.text = name
 
                     // Profile image URL (e.g. Spotify photo or custom)
-                    val photoUrl = doc.getString("photoUrl")
+                    val photoUrl = doc.getString("avatarUrl")
                         ?: doc.getString("spotifyPhotoUrl")
 
                     if (!photoUrl.isNullOrEmpty()) {
