@@ -74,7 +74,7 @@
 
         </LinearLayout>
 
-        <!-- Optional upvote button -->
+        <!-- Like button and count -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
@@ -82,19 +82,19 @@
             android:gravity="center">
 
             <ImageButton
-                android:id="@+id/upvoteButton"
+                android:id="@+id/likeButton"
                 android:layout_width="36dp"
                 android:layout_height="36dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_thumb_up"
-                android:contentDescription="@string/upvote"
-                android:tint="?attr/colorPrimary"/>
+                android:contentDescription="@string/like_button"
+                android:padding="8dp" />
 
             <TextView
-                android:id="@+id/upvoteCount"
+                android:id="@+id/likeCount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="12"
+                android:text="0"
                 android:textSize="13sp"
                 android:textColor="#888888"
                 android:layout_gravity="center_horizontal"/>

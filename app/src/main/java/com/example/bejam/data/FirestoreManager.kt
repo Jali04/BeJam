@@ -13,6 +13,7 @@ object FirestoreManager {
     private val fs = Firebase.firestore
     private const val REQ = "friend_requests"
     private const val FRI = "friends"
+    private const val SEL = "daily_selections"
 
     data class Request(
         val id: String = "",
@@ -124,5 +125,22 @@ object FirestoreManager {
             subA.remove()
             subB.remove()
         }
+    }
+    /**
+     * Add the given userId to the likes array of a daily selection.
+     */
+    fun likeSelection(selectionId: String, userId: String): Task<Void> {
+        return fs.collection(SEL)
+            .document(selectionId)
+            .update("likes", FieldValue.arrayUnion(userId))
+    }
+
+    /**
+     * Remove the given userId from the likes array of a daily selection.
+     */
+    fun unlikeSelection(selectionId: String, userId: String): Task<Void> {
+        return fs.collection(SEL)
+            .document(selectionId)
+            .update("likes", FieldValue.arrayRemove(userId))
     }
 }

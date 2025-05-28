@@ -10,4 +10,5 @@
     <string name="login">Login</string>
     <string name="requestor_avatar">Requestor avatar</string>
     <string name="friend_avatar">Friend avatar</string>
+    <string name="like_button">Like</string>
 </resources>

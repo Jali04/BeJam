@@ -37,6 +37,9 @@ import org.json.JSONObject
 import retrofit2.HttpException
 import java.io.IOException
 
+import androidx.fragment.app.viewModels
+import com.example.bejam.ui.home.HomeViewModel
+
 class HomeFragment : Fragment() {
 
     private var _binding: FragmentHomeBinding? = null
@@ -47,6 +50,8 @@ class HomeFragment : Fragment() {
     private lateinit var feedAdapter: FeedAdapter
     private var player: ExoPlayer? = null
     private var friendMap: Map<String, String> = emptyMap()
+
+    private val viewModel: HomeViewModel by viewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -92,7 +97,7 @@ class HomeFragment : Fragment() {
         binding.tracksRecyclerView.adapter = adapter
 
         // --- FEED RECYCLERVIEW SETUP ---
-        feedAdapter = FeedAdapter()
+        feedAdapter = FeedAdapter(viewModel::onLikeClicked)
         binding.feedRecyclerView.layoutManager = LinearLayoutManager(context)
         binding.feedRecyclerView.adapter = feedAdapter
 
@@ -232,7 +237,10 @@ class HomeFragment : Fragment() {
                     val sel = doc.toObject(DailySelection::class.java)
                     val docId = doc.id
                     // Nur heutige Posts!
-                    if (docId.endsWith(today)) sel else null
+                    if (sel != null && doc.id.endsWith(today)) {
+                        // Map the Firestore document ID into the selection model
+                        sel.copy(id = doc.id)
+                    } else null
                 }
                 // Chunk ersetzen (mehrere Listener = mehrere Chunks)
                 // Trick: alle neuen Posts zusammenführen (unique by userId)

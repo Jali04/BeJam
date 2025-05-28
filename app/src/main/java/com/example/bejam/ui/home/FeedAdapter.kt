@@ -1,17 +1,20 @@
 package com.example.bejam.ui.home
 
+import com.example.bejam.data.model.DailySelection
+import com.google.firebase.auth.FirebaseAuth
+
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.example.bejam.data.model.DailySelection
 import com.example.bejam.data.model.Friend
 import com.example.bejam.databinding.ItemFeedBinding
-import com.google.firebase.auth.FirebaseAuth
 
-class FeedAdapter : ListAdapter<DailySelection, FeedAdapter.FeedVH>(Diff()) {
+class FeedAdapter(
+    private val onLikeClicked: (DailySelection) -> Unit
+) : ListAdapter<DailySelection, FeedAdapter.FeedVH>(Diff()) {
     private var friendMap: Map<String, String> = emptyMap()
 
     fun setFriendList(friends: List<Friend>) {
@@ -29,15 +32,21 @@ class FeedAdapter : ListAdapter<DailySelection, FeedAdapter.FeedVH>(Diff()) {
         FeedVH(ItemFeedBinding.inflate(LayoutInflater.from(parent.context), parent, false))
 
     override fun onBindViewHolder(holder: FeedVH, position: Int) =
-        holder.bind(getItem(position))
+        holder.bind(getItem(position), onLikeClicked)
 
     inner class FeedVH(private val b: ItemFeedBinding): RecyclerView.ViewHolder(b.root) {
-        fun bind(sel: DailySelection) {
+        fun bind(sel: DailySelection, onLikeClicked: (DailySelection) -> Unit) {
             b.songTitle.text = sel.songName
             b.artistName.text = sel.artist
             b.comment.text = sel.comment ?: ""
             b.username.text = friendNameForUserId(sel.userId)
             Glide.with(b.root).load(sel.imageUrl).into(b.albumCover)
+
+            // Like count and button state
+            val me = FirebaseAuth.getInstance().currentUser?.uid
+            b.likeCount.text = sel.likes.size.toString()
+            b.likeButton.isSelected = me != null && sel.likes.contains(me)
+            b.likeButton.setOnClickListener { onLikeClicked(sel) }
         }
     }
     class Diff : DiffUtil.ItemCallback<DailySelection>() {

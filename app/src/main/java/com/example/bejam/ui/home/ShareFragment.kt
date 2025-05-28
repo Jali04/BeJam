@@ -43,12 +43,14 @@ class ShareFragment : Fragment() {
                 val docId = "${firebaseUser.uid}_$today"
 
                 val selection = DailySelection(
+                    id = docId,
                     userId = firebaseUser.uid,
                     songId = args.trackId,
                     songName = args.trackName,
                     artist = args.artistNames,
                     imageUrl = args.imageUrl,
                     comment = comment,
+                    likes = emptyList(),              // initialize likes array
                     timestamp = System.currentTimeMillis()
                 )
 
