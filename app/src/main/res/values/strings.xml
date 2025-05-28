@@ -8,4 +8,6 @@
     <string name="upvote">Upvote</string>
     <string name="logout">Logout</string>
     <string name="login">Login</string>
+    <string name="requestor_avatar">Requestor avatar</string>
+    <string name="friend_avatar">Friend avatar</string>
 </resources>

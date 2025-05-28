@@ -7,8 +7,10 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.bejam.databinding.ItemRequestBinding
 import com.example.bejam.data.FirestoreManager
-import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.ktx.Firebase
+import com.bumptech.glide.Glide
+import com.example.bejam.R
 
 class RequestAdapter(
     private val onRespond: (FirestoreManager.Request, Boolean) -> Unit
@@ -24,19 +26,42 @@ class RequestAdapter(
         : RecyclerView.ViewHolder(b.root) {
 
         fun bind(req: FirestoreManager.Request) {
-            // Anstatt einfach nur req.fromUid:
-            val firestore = Firebase.firestore
-            firestore.collection("user_profiles")
+            // Default to UID until we load a nicer name
+            b.requestFrom.text = req.fromUid
+            // Load profile image & display name from Firestore
+            FirebaseFirestore.getInstance()
+                .collection("user_profiles")
                 .document(req.fromUid)
                 .get()
                 .addOnSuccessListener { doc ->
-                    val name = doc.getString("displayName") ?: doc.getString("spotifyId") ?: req.fromUid
+                    // Username
+                    val name = doc.getString("displayName")
+                        ?: doc.getString("spotifyId")
+                        ?: req.fromUid
                     b.requestFrom.text = name
+
+                    // Profile image URL (e.g. Spotify photo or custom)
+                    val photoUrl = doc.getString("photoUrl")
+                        ?: doc.getString("spotifyPhotoUrl")
+
+                    if (!photoUrl.isNullOrEmpty()) {
+                        // Load into ImageView using Glide
+                        Glide.with(b.requestAvatar.context)
+                            .load(photoUrl)
+                            .placeholder(R.drawable.placeholder_profile)
+                            .into(b.requestAvatar)
+                    } else {
+                        // Optional: clear or set default avatar
+                        b.requestAvatar.setImageResource(R.drawable.placeholder_profile)
+                    }
                 }
                 .addOnFailureListener {
-                    b.requestFrom.text = req.fromUid // Fallback
+                    // Fallback: show UID and default avatar
+                    b.requestFrom.text = req.fromUid
+                    b.requestAvatar.setImageResource(R.drawable.placeholder_profile)
                 }
-            // Buttons bleiben wie gehabt
+
+            // Handle button clicks
             b.acceptBtn.setOnClickListener { onRespond(req, true) }
             b.rejectBtn.setOnClickListener { onRespond(req, false) }
         }

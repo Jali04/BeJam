@@ -83,16 +83,35 @@ object FirestoreManager {
 
     /** Stream all friendships where userA == me OR userB == me */
     fun observeFriends(myUid: String): Flow<List<Pair<String,String>>> = callbackFlow {
+        var latestA = emptyList<Pair<String, String>>()
+        var latestB = emptyList<Pair<String, String>>()
+
         val subA = fs.collection(FRI)
             .whereEqualTo("userA", myUid)
             .addSnapshotListener { snap, err ->
-                // collect all where userA == myUid
+                if (err != null) {
+                    close(err)
+                    return@addSnapshotListener
+                }
+                latestA = snap!!.documents.map { doc ->
+                    Pair(doc.getString("userA")!!, doc.getString("userB")!!)
+                }
+                trySend(latestA + latestB)
             }
+
         val subB = fs.collection(FRI)
             .whereEqualTo("userB", myUid)
             .addSnapshotListener { snap, err ->
-                // collect all where userB == myUid
+                if (err != null) {
+                    close(err)
+                    return@addSnapshotListener
+                }
+                latestB = snap!!.documents.map { doc ->
+                    Pair(doc.getString("userA")!!, doc.getString("userB")!!)
+                }
+                trySend(latestA + latestB)
             }
+
         awaitClose {
             subA.remove()
             subB.remove()
