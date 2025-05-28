@@ -5,12 +5,20 @@ import androidx.lifecycle.*
 import com.example.bejam.data.FirestoreManager
 import com.example.bejam.data.FirestoreManager.Request
 import com.example.bejam.data.FriendRepository
+import com.example.bejam.data.model.DailySelection
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+
+data class UserProfile(
+    val uid: String,
+    val displayName: String,
+    val avatarUrl: String?,
+    val spotifyId: String?
+)
 
 class FriendsViewModel(app: Application) : AndroidViewModel(app) {
     private val auth = FirebaseAuth.getInstance()
@@ -40,6 +48,45 @@ class FriendsViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // UID-Liste deiner Freunde (inkl. Fehlerbehandlung falls User nicht eingeloggt)
+    val friendUids: LiveData<List<String>> = friends.map { pairs ->
+        val myUid = currentUid
+        pairs.mapNotNull { (userA, userB) ->
+            when (myUid) {
+                userA -> userB
+                userB -> userA
+                else -> null
+            }
+        }
+    }
+
+    // --------- UserProfile Map für FeedAdapter ---------
+    private val _profileMap = MutableLiveData<Map<String, UserProfile>>()
+    val profileMap: LiveData<Map<String, UserProfile>> = _profileMap
+
+    fun loadProfilesForUids(uids: Collection<String>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val map = mutableMapOf<String, UserProfile>()
+            val firestore = Firebase.firestore
+            for (uid in uids) {
+                try {
+                    val snap = firestore.collection("user_profiles").document(uid).get().await()
+                    if (snap.exists()) {
+                        map[uid] = UserProfile(
+                            uid = uid,
+                            displayName = snap.getString("displayName") ?: "Unknown User",
+                            avatarUrl = snap.getString("avatarUrl"),
+                            spotifyId = snap.getString("spotifyId")
+                        )
+                    }
+                } catch (_: Exception) { /* ignore single user failure */ }
+            }
+            _profileMap.postValue(map)
+        }
+    }
+    // -----------------------------------------
+
+    // Fehlerhandling
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
 
@@ -47,7 +94,6 @@ class FriendsViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) {
             val firestore = Firebase.firestore
 
-            // 1. Finde die UID des Zielusers (wie gehabt)
             val targetSnapshot = firestore.collection("user_profiles")
                 .whereEqualTo("spotifyId", searchInput)
                 .get().await()
@@ -58,7 +104,6 @@ class FriendsViewModel(app: Application) : AndroidViewModel(app) {
                 return@launch
             }
 
-            // 2. Prüfe auf bestehende Requests: erst "ich → ihn", dann "er → mich"
             val sentReq = firestore.collection("friend_requests")
                 .whereEqualTo("fromUid", currentUid)
                 .whereEqualTo("toUid", toUid)
@@ -77,7 +122,6 @@ class FriendsViewModel(app: Application) : AndroidViewModel(app) {
                 return@launch
             }
 
-            // 3. Prüfe auf bestehende Freundschaft
             val sortedIds = listOf(currentUid, toUid).sorted()
             val friendshipId = "${sortedIds[0]}_${sortedIds[1]}"
             val friendDoc = firestore.collection("friends").document(friendshipId).get().await()
@@ -86,7 +130,6 @@ class FriendsViewModel(app: Application) : AndroidViewModel(app) {
                 return@launch
             }
 
-            // 4. Sende die Anfrage (wenn noch nicht vorhanden)
             FirestoreManager.sendRequest(currentUid, toUid).await()
             _requestSent.postValue(true)
         }
@@ -99,21 +142,17 @@ class FriendsViewModel(app: Application) : AndroidViewModel(app) {
     fun respond(req: Request, accept: Boolean) = viewModelScope.launch(Dispatchers.IO) {
         val myUid = auth.currentUser?.uid ?: return@launch
         try {
-            // 1. Check: Existiert die Freundschaft schon?
             val firestore = Firebase.firestore
             val sortedIds = listOf(myUid, req.fromUid).sorted()
             val friendshipId = "${sortedIds[0]}_${sortedIds[1]}"
             val friendDoc = firestore.collection("friends").document(friendshipId).get().await()
             if (friendDoc.exists()) {
-                // Freundschaft existiert schon → Anfrage löschen und User informieren
                 firestore.collection("friend_requests").document(req.id).delete().await()
                 _error.postValue("Diese Person ist bereits in deiner Freundesliste.")
                 _requestSent.postValue(false)
                 return@launch
             }
 
-
-            // 2. Wenn Freundschaft NICHT existiert, dann fahre normal fort
             FirestoreManager.respondToRequest(req, accept, myUid)
             _error.postValue(null)
 
@@ -133,4 +172,27 @@ class FriendsViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // ------ Like-Button Unterstützung für FeedAdapter ------
+    fun onLikeClicked(sel: DailySelection) {
+        val myUid = currentUid
+        if (sel.userId == myUid) return // <-- VERHINDERN!
+        val db = Firebase.firestore
+        val docRef = db.collection("daily_selections").document(sel.id)
+        viewModelScope.launch(Dispatchers.IO) {
+            db.runTransaction { tx ->
+                val snap = tx.get(docRef)
+                if (snap.exists()) {
+                    val likes = (snap.get("likes") as? List<*>)?.mapNotNull { it as? String }?.toMutableList() ?: mutableListOf()
+                    if (likes.contains(myUid)) {
+                        likes.remove(myUid)
+                    } else {
+                        likes.add(myUid)
+                    }
+                    tx.update(docRef, "likes", likes)
+                }
+            }.await()
+        }
+    }
+
+    // -------------------------------------------------------
 }

@@ -11,17 +11,18 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.asLiveData
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.example.bejam.R
 import com.example.bejam.auth.SpotifyAuthManager
-import com.example.bejam.data.FriendRepository
 import com.example.bejam.data.RetrofitClient
 import com.example.bejam.data.model.DailySelection
 import com.example.bejam.databinding.FragmentHomeBinding
+import com.example.bejam.ui.friends.FriendsViewModel
+import com.example.bejam.ui.friends.UserProfile
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.firebase.auth.FirebaseAuth
@@ -31,14 +32,10 @@ import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.tasks.await
 import okhttp3.*
 import org.json.JSONObject
 import retrofit2.HttpException
 import java.io.IOException
-
-import androidx.fragment.app.viewModels
-import com.example.bejam.ui.home.HomeViewModel
 
 class HomeFragment : Fragment() {
 
@@ -49,9 +46,29 @@ class HomeFragment : Fragment() {
     private lateinit var adapter: TrackAdapter
     private lateinit var feedAdapter: FeedAdapter
     private var player: ExoPlayer? = null
-    private var friendMap: Map<String, String> = emptyMap()
+    private lateinit var friendsViewModel: FriendsViewModel
 
-    private val viewModel: HomeViewModel by viewModels()
+    private val feedListeners = mutableListOf<ListenerRegistration>()
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        // FriendsViewModel ist zuständig für Friends, FriendUids, ProfileMap
+        friendsViewModel = ViewModelProvider(requireActivity())[FriendsViewModel::class.java]
+
+        // Sobald sich die Friend-UIDs ändern, lade alle Profile und beobachte den Feed
+        friendsViewModel.friendUids.observe(viewLifecycleOwner) { friendUids ->
+            val myUid = friendsViewModel.currentUid
+            val allUids = friendUids + myUid
+            friendsViewModel.loadProfilesForUids(allUids)
+            observeLiveFeed(allUids)
+        }
+
+        // ProfileMap ins FeedAdapter schieben (wird automatisch für alle Posts genutzt)
+        friendsViewModel.profileMap.observe(viewLifecycleOwner) { map ->
+            feedAdapter.setProfileMap(map)
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -62,7 +79,7 @@ class HomeFragment : Fragment() {
         authManager = SpotifyAuthManager(requireContext())
         val prefs = requireContext().getSharedPreferences("auth", Context.MODE_PRIVATE)
 
-        // --- SEARCH BAR & TRACKS RECYCLERVIEW SETUP ---
+        // SEARCH BAR & TRACKS RECYCLERVIEW SETUP
         adapter = TrackAdapter(
             onPlayClick = { track ->
                 val url = track.preview_url
@@ -96,22 +113,14 @@ class HomeFragment : Fragment() {
         binding.tracksRecyclerView.layoutManager = LinearLayoutManager(context)
         binding.tracksRecyclerView.adapter = adapter
 
-        // --- FEED RECYCLERVIEW SETUP ---
-        feedAdapter = FeedAdapter(viewModel::onLikeClicked)
+        // FEED RECYCLERVIEW SETUP
+        feedAdapter = FeedAdapter { dailySelection ->
+            friendsViewModel.onLikeClicked(dailySelection)
+        }
         binding.feedRecyclerView.layoutManager = LinearLayoutManager(context)
         binding.feedRecyclerView.adapter = feedAdapter
 
-        // --- LOAD FRIENDS AND FEED ---
-        FriendRepository.getInstance(requireContext()).getAllFriends()
-            .asLiveData().observe(viewLifecycleOwner) { friends ->
-                friendMap = friends.associate { it.id to it.username }
-                val myUid = FirebaseAuth.getInstance().currentUser?.uid
-                val userIds = if (myUid != null) friendMap.keys + myUid else friendMap.keys
-                observeLiveFeed(userIds)
-                feedAdapter.setFriendList(friends)
-            }
-
-        // --- SEARCH BAR HOOK ---
+        // SEARCH BAR HOOK
         binding.searchEditText.addTextChangedListener(afterTextChanged = { editable ->
             val q = editable?.toString()?.trim().orEmpty()
             if (q.length < 3) {
@@ -180,7 +189,7 @@ class HomeFragment : Fragment() {
             }
         })
 
-        // --- SPOTIFY LOGIN STATE ---
+        // SPOTIFY LOGIN STATE
         val accessToken = prefs.getString("access_token", null)
         if (accessToken != null) {
             binding.spotifyLoginButton.visibility = View.GONE
@@ -207,9 +216,8 @@ class HomeFragment : Fragment() {
         return binding.root
     }
 
-    private val feedListeners = mutableListOf<ListenerRegistration>()
-
     private fun observeLiveFeed(userIds: Collection<String>) {
+        Log.d("FEED", "Feed-UserIds: $userIds")
         // Vorherige Listener entfernen (wichtig beim erneuten Aufruf!)
         feedListeners.forEach { it.remove() }
         feedListeners.clear()
@@ -229,7 +237,6 @@ class HomeFragment : Fragment() {
 
             val listener = query.addSnapshotListener { snap, err ->
                 if (err != null) {
-                    // Zeige Fehler (optional)
                     feedAdapter.submitList(emptyList())
                     return@addSnapshotListener
                 }
@@ -238,12 +245,9 @@ class HomeFragment : Fragment() {
                     val docId = doc.id
                     // Nur heutige Posts!
                     if (sel != null && doc.id.endsWith(today)) {
-                        // Map the Firestore document ID into the selection model
                         sel.copy(id = doc.id)
                     } else null
                 }
-                // Chunk ersetzen (mehrere Listener = mehrere Chunks)
-                // Trick: alle neuen Posts zusammenführen (unique by userId)
                 selections.removeAll { s -> chunk.contains(s.userId) }
                 selections.addAll(posts)
                 feedAdapter.submitList(selections.sortedByDescending { it.timestamp })
@@ -298,5 +302,4 @@ class HomeFragment : Fragment() {
         feedListeners.clear()
         _binding = null
     }
-
 }
