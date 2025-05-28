@@ -25,6 +25,7 @@ import com.example.bejam.databinding.FragmentHomeBinding
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.Dispatchers
@@ -101,7 +102,7 @@ class HomeFragment : Fragment() {
                 friendMap = friends.associate { it.id to it.username }
                 val myUid = FirebaseAuth.getInstance().currentUser?.uid
                 val userIds = if (myUid != null) friendMap.keys + myUid else friendMap.keys
-                loadFeed(userIds)
+                observeLiveFeed(userIds)
                 feedAdapter.setFriendList(friends)
             }
 
@@ -201,24 +202,45 @@ class HomeFragment : Fragment() {
         return binding.root
     }
 
-    private fun loadFeed(userIds: Collection<String>) {
-        lifecycleScope.launch(Dispatchers.IO) {
-            val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
-            val db = Firebase.firestore
-            val selections = mutableListOf<DailySelection>()
-            userIds.chunked(10).forEach { chunk ->
-                val snapshot = db.collection("daily_selections")
-                    .whereIn("userId", chunk)
-                    .get()
-                    .await()
-                selections.addAll(snapshot.documents.mapNotNull { doc ->
+    private val feedListeners = mutableListOf<ListenerRegistration>()
+
+    private fun observeLiveFeed(userIds: Collection<String>) {
+        // Vorherige Listener entfernen (wichtig beim erneuten Aufruf!)
+        feedListeners.forEach { it.remove() }
+        feedListeners.clear()
+
+        if (userIds.isEmpty()) {
+            feedAdapter.submitList(emptyList())
+            return
+        }
+
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+        val db = Firebase.firestore
+        val selections = mutableListOf<DailySelection>()
+
+        userIds.chunked(10).forEach { chunk ->
+            val query = db.collection("daily_selections")
+                .whereIn("userId", chunk)
+
+            val listener = query.addSnapshotListener { snap, err ->
+                if (err != null) {
+                    // Zeige Fehler (optional)
+                    feedAdapter.submitList(emptyList())
+                    return@addSnapshotListener
+                }
+                val posts = snap!!.documents.mapNotNull { doc ->
                     val sel = doc.toObject(DailySelection::class.java)
-                    if (doc.id.endsWith(today)) sel else null
-                })
-            }
-            withContext(Dispatchers.Main) {
+                    val docId = doc.id
+                    // Nur heutige Posts!
+                    if (docId.endsWith(today)) sel else null
+                }
+                // Chunk ersetzen (mehrere Listener = mehrere Chunks)
+                // Trick: alle neuen Posts zusammenführen (unique by userId)
+                selections.removeAll { s -> chunk.contains(s.userId) }
+                selections.addAll(posts)
                 feedAdapter.submitList(selections.sortedByDescending { it.timestamp })
             }
+            feedListeners.add(listener)
         }
     }
 
@@ -264,6 +286,9 @@ class HomeFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         player?.release()
+        feedListeners.forEach { it.remove() }
+        feedListeners.clear()
         _binding = null
     }
+
 }

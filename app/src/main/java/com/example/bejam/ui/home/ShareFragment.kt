@@ -44,7 +44,7 @@ class ShareFragment : Fragment() {
 
                 val selection = DailySelection(
                     userId = firebaseUser.uid,
-                    songId = args.trackId, // pass this in navArgs!
+                    songId = args.trackId,
                     songName = args.trackName,
                     artist = args.artistNames,
                     imageUrl = args.imageUrl,
