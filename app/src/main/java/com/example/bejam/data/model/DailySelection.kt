@@ -9,5 +9,5 @@ data class DailySelection(
     val imageUrl: String? = null,
     val comment: String? = null,
     val likes: List<String> = emptyList(),
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
 )

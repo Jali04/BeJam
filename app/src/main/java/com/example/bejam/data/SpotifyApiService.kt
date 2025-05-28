@@ -2,6 +2,8 @@ package com.example.bejam.data
 
 import com.example.bejam.data.model.SpotifyUserProfile
 import com.example.bejam.data.model.TrackSearchResponse
+import okhttp3.ResponseBody
+import retrofit2.Response
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
@@ -46,4 +48,10 @@ interface SpotifyApiService {
     suspend fun getCurrentUserProfile(
         @Header("Authorization") bearer: String
     ): SpotifyUserProfile
+
+    @PUT("me/tracks")
+    suspend fun likeTrack(
+        @Header("Authorization") authHeader: String,
+        @Query("ids") trackIds: List<String>
+    ): Response<ResponseBody>
 }

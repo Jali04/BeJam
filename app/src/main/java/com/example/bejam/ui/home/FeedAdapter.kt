@@ -12,11 +12,11 @@ import com.example.bejam.ui.friends.UserProfile
 import com.google.firebase.auth.FirebaseAuth
 
 class FeedAdapter(
-    private val onLikeClicked: (DailySelection) -> Unit
+    private val onLikeClicked: (DailySelection) -> Unit,
+    private val onItemClick: (DailySelection) -> Unit
 ) : ListAdapter<DailySelection, FeedAdapter.FeedVH>(Diff()) {
-    // Map Firebase-UID auf UserProfile (aus Firestore)
-    private var profileMap: Map<String, UserProfile> = emptyMap()
 
+    private var profileMap: Map<String, UserProfile> = emptyMap()
 
     fun setProfileMap(map: Map<String, UserProfile>) {
         profileMap = map
@@ -27,15 +27,19 @@ class FeedAdapter(
         FeedVH(ItemFeedBinding.inflate(LayoutInflater.from(parent.context), parent, false))
 
     override fun onBindViewHolder(holder: FeedVH, position: Int) =
-        holder.bind(getItem(position), profileMap, onLikeClicked)
+        holder.bind(getItem(position), profileMap, onLikeClicked, onItemClick)
 
     inner class FeedVH(private val b: ItemFeedBinding): RecyclerView.ViewHolder(b.root) {
-        fun bind(sel: DailySelection, profileMap: Map<String, UserProfile>, onLikeClicked: (DailySelection) -> Unit) {
+        fun bind(
+            sel: DailySelection,
+            profileMap: Map<String, UserProfile>,
+            onLikeClicked: (DailySelection) -> Unit,
+            onItemClick: (DailySelection) -> Unit
+        ) {
             val me = FirebaseAuth.getInstance().currentUser?.uid
             b.songTitle.text = sel.songName
             b.artistName.text = sel.artist
             b.comment.text = sel.comment ?: ""
-
             val myUid = FirebaseAuth.getInstance().currentUser?.uid
             val profile = profileMap[sel.userId]
             b.username.text = when {
@@ -43,10 +47,7 @@ class FeedAdapter(
                 profile != null     -> profile.displayName
                 else                -> "Unknown User"
             }
-
             Glide.with(b.root).load(sel.imageUrl).into(b.albumCover)
-
-            // Like count und Button-Status
             b.likeCount.text = sel.likes.size.toString()
             b.likeButton.isEnabled = sel.userId != me
             b.likeButton.isSelected = me != null && sel.likes.contains(me)
@@ -55,13 +56,12 @@ class FeedAdapter(
                     onLikeClicked(sel)
                 }
             }
+            b.root.setOnClickListener { onItemClick(sel) }
         }
     }
 
-
-
     class Diff : DiffUtil.ItemCallback<DailySelection>() {
-        override fun areItemsTheSame(a: DailySelection, b: DailySelection) = a.userId == b.userId
+        override fun areItemsTheSame(a: DailySelection, b: DailySelection) = a.id == b.id // Nutze unique id!
         override fun areContentsTheSame(a: DailySelection, b: DailySelection) = a == b
     }
 }

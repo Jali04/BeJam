@@ -47,16 +47,15 @@ class HomeFragment : Fragment() {
     private lateinit var feedAdapter: FeedAdapter
     private var player: ExoPlayer? = null
     private lateinit var friendsViewModel: FriendsViewModel
+    private lateinit var feedViewModel: FeedViewModel
 
     private val feedListeners = mutableListOf<ListenerRegistration>()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        // FriendsViewModel ist zuständig für Friends, FriendUids, ProfileMap
         friendsViewModel = ViewModelProvider(requireActivity())[FriendsViewModel::class.java]
+        feedViewModel = ViewModelProvider(this)[FeedViewModel::class.java]
 
-        // Sobald sich die Friend-UIDs ändern, lade alle Profile und beobachte den Feed
         friendsViewModel.friendUids.observe(viewLifecycleOwner) { friendUids ->
             val myUid = friendsViewModel.currentUid
             val allUids = friendUids + myUid
@@ -64,9 +63,13 @@ class HomeFragment : Fragment() {
             observeLiveFeed(allUids)
         }
 
-        // ProfileMap ins FeedAdapter schieben (wird automatisch für alle Posts genutzt)
         friendsViewModel.profileMap.observe(viewLifecycleOwner) { map ->
             feedAdapter.setProfileMap(map)
+        }
+
+        // Fehler/Erfolg Like-Feedback
+        feedViewModel.likeResult.observe(viewLifecycleOwner) { success ->
+            if (!success) Toast.makeText(context, "Konnte Like nicht speichern", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -114,9 +117,15 @@ class HomeFragment : Fragment() {
         binding.tracksRecyclerView.adapter = adapter
 
         // FEED RECYCLERVIEW SETUP
-        feedAdapter = FeedAdapter { dailySelection ->
-            friendsViewModel.onLikeClicked(dailySelection)
-        }
+        feedAdapter = FeedAdapter(
+            onLikeClicked = { selection -> feedViewModel.onLikeClicked(selection) },
+            onItemClick = { selection ->
+                val action = HomeFragmentDirections
+                    .actionHomeFragmentToSongDetailFragment(selection.id)
+                findNavController().navigate(action)
+            }
+        )
+
         binding.feedRecyclerView.layoutManager = LinearLayoutManager(context)
         binding.feedRecyclerView.adapter = feedAdapter
 

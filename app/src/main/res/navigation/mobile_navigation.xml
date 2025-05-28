@@ -16,6 +16,14 @@
         <action
             android:id="@+id/actionHomeFragmentToShareFragment"
             app:destination="@id/shareFragment" />
+
+        <action
+            android:id="@+id/actionHomeFragmentToSongDetailFragment"
+            app:destination="@id/songDetailFragment" >
+            <argument
+                android:name="dailySelectionId"
+                app:argType="string" />
+        </action>
     </fragment>
 
     <!-- Define the ShareFragment destination -->
@@ -38,6 +46,17 @@
             android:name="imageUrl"
             app:argType="string" />
     </fragment>
+
+    <fragment
+        android:id="@+id/songDetailFragment"
+        android:name="com.example.bejam.ui.detail.SongDetailFragment"
+        android:label="Song Details"
+        tools:layout="@layout/fragment_song_detail">
+        <argument
+            android:name="dailySelectionId"
+            app:argType="string" />
+    </fragment>
+
 
     <!-- Friends screen -->
     <fragment
