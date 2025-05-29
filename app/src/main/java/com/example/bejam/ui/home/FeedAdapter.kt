@@ -54,6 +54,7 @@ class FeedAdapter(
             b.likeButton.setOnClickListener {
                 if (sel.userId != me) {
                     onLikeClicked(sel)
+                    b.likeButton.isSelected = !b.likeButton.isSelected
                 }
             }
             b.root.setOnClickListener { onItemClick(sel) }
