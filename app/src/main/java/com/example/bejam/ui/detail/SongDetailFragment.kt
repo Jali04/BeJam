@@ -1,5 +1,6 @@
 package com.example.bejam.ui.detail
 
+import android.app.AlertDialog
 import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -8,9 +9,17 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.bumptech.glide.Glide
+import com.example.bejam.data.model.DailySelection
 import com.example.bejam.databinding.FragmentSongDetailBinding
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.Response
+import java.io.IOException
 
 class SongDetailFragment : Fragment() {
     private var _binding: FragmentSongDetailBinding? = null
@@ -43,54 +52,75 @@ class SongDetailFragment : Fragment() {
 
         // Button click → später Spotify-Logik hier!
         binding.likeOnSpotifyButton.setOnClickListener {
-            // Access Token holen
+            // SharedPreferences & Token
             val prefs = requireContext().getSharedPreferences("auth", Context.MODE_PRIVATE)
             val token = prefs.getString("access_token", null)
             if (token.isNullOrEmpty()) {
-                Toast.makeText(requireContext(), "Bitte melde dich zuerst bei Spotify an.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(),
+                    "Bitte melde dich zuerst bei Spotify an.",
+                    Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            // Song-ID holen
-            val id = arguments?.getString("dailySelectionId") ?: return@setOnClickListener
 
-            // Lade DailySelection um die Spotify Track-ID zu bekommen!
-            Firebase.firestore.collection("daily_selections").document(id)
-                .get().addOnSuccessListener { doc ->
-                    val sel = doc.toObject(com.example.bejam.data.model.DailySelection::class.java)
-                    val spotifyTrackId = sel?.songId
-                    if (spotifyTrackId.isNullOrEmpty()) {
-                        Toast.makeText(requireContext(), "Spotify Track ID fehlt!", Toast.LENGTH_SHORT).show()
-                        return@addOnSuccessListener
-                    }
-                    // Mache den API Call zu Spotify
-                    val client = okhttp3.OkHttpClient()
-                    val req = okhttp3.Request.Builder()
-                        .url("https://api.spotify.com/v1/me/tracks?ids=$spotifyTrackId")
-                        .addHeader("Authorization", "Bearer $token")
-                        .put(okhttp3.RequestBody.create(null, "")) // PUT-Body muss leer sein
-                        .build()
+            // DailySelection-ID
+            val docId = arguments?.getString("dailySelectionId") ?: return@setOnClickListener
 
-                    client.newCall(req).enqueue(object : okhttp3.Callback {
-                        override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
-                            requireActivity().runOnUiThread {
-                                Toast.makeText(requireContext(), "Fehler beim Hinzufügen: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            // Dialog
+            AlertDialog.Builder(requireContext())
+                .setTitle("Zu Favoriten hinzufügen")
+                .setMessage("Möchtest du diesen Song wirklich zu deinen Spotify-Favoriten hinzufügen?")
+                .setPositiveButton("Ja") { _, _ ->
+                    // **Hier direkt ausführen:**
+                    Firebase.firestore
+                        .collection("daily_selections")
+                        .document(docId)
+                        .get()
+                        .addOnSuccessListener { doc ->
+                            val sel = doc.toObject(DailySelection::class.java)
+                            val spotifyTrackId = sel?.songId
+                            if (spotifyTrackId.isNullOrEmpty()) {
+                                Toast.makeText(requireContext(),
+                                    "Spotify Track ID fehlt!",
+                                    Toast.LENGTH_SHORT).show()
+                                return@addOnSuccessListener
                             }
-                        }
-
-                        override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
-                            requireActivity().runOnUiThread {
-                                if (response.isSuccessful) {
-                                    Toast.makeText(requireContext(), "Song wurde zu deinen Spotify Likes hinzugefügt!", Toast.LENGTH_SHORT).show()
-                                    binding.likeOnSpotifyButton.isEnabled = false
-                                    binding.likeOnSpotifyButton.text = "Hinzugefügt!"
-                                } else {
-                                    Toast.makeText(requireContext(), "Fehler: ${response.code}", Toast.LENGTH_SHORT).show()
+                            // Request bauen und senden
+                            OkHttpClient().newCall(
+                                Request.Builder()
+                                    .url("https://api.spotify.com/v1/me/tracks?ids=$spotifyTrackId")
+                                    .addHeader("Authorization", "Bearer $token")
+                                    .put(RequestBody.create(null, ByteArray(0)))
+                                    .build()
+                            ).enqueue(object : Callback {
+                                override fun onFailure(call: Call, e: IOException) {
+                                    requireActivity().runOnUiThread {
+                                        Toast.makeText(requireContext(),
+                                            "Fehler beim Hinzufügen: ${e.localizedMessage}",
+                                            Toast.LENGTH_SHORT).show()
+                                    }
                                 }
-                            }
+                                override fun onResponse(call: Call, response: Response) {
+                                    requireActivity().runOnUiThread {
+                                        if (response.isSuccessful) {
+                                            Toast.makeText(requireContext(),
+                                                "Song wurde zu deinen Spotify Likes hinzugefügt!",
+                                                Toast.LENGTH_SHORT).show()
+                                            binding.likeOnSpotifyButton.isEnabled = false
+                                            binding.likeOnSpotifyButton.text = "Hinzugefügt!"
+                                        } else {
+                                            Toast.makeText(requireContext(),
+                                                "Fehler: ${response.code}",
+                                                Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                            })
                         }
-                    })
                 }
+                .setNegativeButton("Abbrechen", null)
+                .show()
         }
+
         return binding.root
     }
 
