@@ -46,7 +46,7 @@ class SpotifyAuthManager(private val context: Context) {
             .appendQueryParameter("code_challenge", codeChallenge)
             .appendQueryParameter(
                 "scope",
-                "user-read-private user-read-email user-library-modify user-library-read user-follow-modify user-follow-read"
+                "user-read-private user-read-email user-library-modify user-library-read user-follow-modify user-follow-read user-top-read"
             )
             .build()
 
