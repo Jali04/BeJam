@@ -19,8 +19,8 @@
             android:layout_height="120dp"
             android:scaleType="centerCrop"
             android:src="@drawable/placeholder_profile"
+            android:background="@drawable/circle_mask"
             android:layout_marginTop="24dp"
-            android:background="@drawable/placeholder_profile"
             android:clipToOutline="true"/>
 
         <!-- 2) Display Name -->
