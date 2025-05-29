@@ -259,7 +259,11 @@ class HomeFragment : Fragment() {
                 }
                 selections.removeAll { s -> chunk.contains(s.userId) }
                 selections.addAll(posts)
-                feedAdapter.submitList(selections.sortedByDescending { it.timestamp })
+                val sorted = selections.sortedWith(
+                    compareByDescending<DailySelection> { it.likes.size }
+                        .thenByDescending { it.timestamp }
+                )
+                feedAdapter.submitList(sorted)
             }
             feedListeners.add(listener)
         }
