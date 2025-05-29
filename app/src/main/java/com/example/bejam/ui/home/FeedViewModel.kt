@@ -6,6 +6,10 @@ import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import java.util.Calendar
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.LiveData
 
 class FeedViewModel : ViewModel() {
     private val db = Firebase.firestore
@@ -33,5 +37,45 @@ class FeedViewModel : ViewModel() {
                 _likeResult.postValue(false)
             }
         }
+    }
+
+    fun observeTodayFeed(userIds: List<String>): LiveData<List<DailySelection>> {
+        val liveData = MutableLiveData<List<DailySelection>>()
+        val selections = mutableListOf<DailySelection>()
+
+        // Calculate start and end of the current day
+        val calendar = Calendar.getInstance().apply {
+            timeInMillis = System.currentTimeMillis()
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val startOfDay = calendar.timeInMillis
+        calendar.add(Calendar.DAY_OF_MONTH, 1)
+        val endOfDay = calendar.timeInMillis
+
+        // Firestore limits whereIn to 10 items; fetch by userId then filter locally by timestamp
+        userIds.chunked(10).forEach { chunk ->
+            FirebaseFirestore.getInstance()
+                .collection("daily_selections")
+                .whereIn("userId", chunk)
+                .addSnapshotListener { snap, err ->
+                    if (err != null) return@addSnapshotListener
+                    // Map documents to DailySelection and filter for today
+                    val posts = snap!!.documents.mapNotNull { doc ->
+                        doc.toObject(DailySelection::class.java)?.copy(id = doc.id)
+                    }.filter { it.timestamp in startOfDay until endOfDay }
+                    // Replace entries from this chunk and sort
+                    selections.removeAll { it.userId in chunk }
+                    selections.addAll(posts)
+                    val sorted = selections.sortedWith(
+                        compareByDescending<DailySelection> { it.likes.size }
+                            .thenByDescending { it.timestamp }
+                    )
+                    liveData.postValue(sorted)
+                }
+        }
+        return liveData
     }
 }

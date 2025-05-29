@@ -12,7 +12,9 @@ import android.widget.Toast
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.observe
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
@@ -47,20 +49,25 @@ class HomeFragment : Fragment() {
     private lateinit var feedAdapter: FeedAdapter
     private var player: ExoPlayer? = null
     private lateinit var friendsViewModel: FriendsViewModel
-    private lateinit var feedViewModel: FeedViewModel
+    private val feedViewModel: FeedViewModel by viewModels()
 
     private val feedListeners = mutableListOf<ListenerRegistration>()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         friendsViewModel = ViewModelProvider(requireActivity())[FriendsViewModel::class.java]
-        feedViewModel = ViewModelProvider(this)[FeedViewModel::class.java]
+        // feedViewModel = ViewModelProvider(this)[FeedViewModel::class.java]
 
         friendsViewModel.friendUids.observe(viewLifecycleOwner) { friendUids ->
             val myUid = friendsViewModel.currentUid
             val allUids = friendUids + myUid
             friendsViewModel.loadProfilesForUids(allUids)
-            observeLiveFeed(allUids)
+            // Observe today's feed (friends + self)
+            feedViewModel.observeTodayFeed(allUids)
+                .observe(viewLifecycleOwner) { list ->
+                    feedAdapter.submitList(list)
+                }
+            // observeLiveFeed(allUids) // Commented out as no longer needed
         }
 
         friendsViewModel.profileMap.observe(viewLifecycleOwner) { map ->

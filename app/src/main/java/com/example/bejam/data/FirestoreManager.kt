@@ -1,6 +1,7 @@
 package com.example.bejam.data
 
 import com.google.android.gms.tasks.Task
+import java.util.Calendar
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
@@ -142,5 +143,41 @@ object FirestoreManager {
         return fs.collection(SEL)
             .document(selectionId)
             .update("likes", FieldValue.arrayRemove(userId))
+    }
+
+    /**
+     * Deletes all daily selections for the given user that were created today.
+     * This version fetches all selections for the user and filters by timestamp in Kotlin,
+     * avoiding the need for a composite index in Firestore.
+     */
+    suspend fun clearTodaySelections(uid: String) {
+        // Calculate the start and end of the current day in milliseconds
+        val calendar = Calendar.getInstance().apply {
+            timeInMillis = System.currentTimeMillis()
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val startOfDay = calendar.timeInMillis
+        calendar.add(Calendar.DAY_OF_MONTH, 1)
+        val endOfDay = calendar.timeInMillis
+
+        // Fetch all selections for this user, then filter locally by today's timestamp range
+        val allSnapshot = fs.collection(SEL)
+            .whereEqualTo("userId", uid)
+            .get()
+            .await()
+        val snapshotDocs = allSnapshot.documents.filter { doc ->
+            val ts = doc.getLong("timestamp") ?: 0L
+            ts in startOfDay until endOfDay
+        }
+
+        // Batch delete all matching documents
+        val batch = fs.batch()
+        for (doc in snapshotDocs) {
+            batch.delete(doc.reference)
+        }
+        batch.commit().await()
     }
 }

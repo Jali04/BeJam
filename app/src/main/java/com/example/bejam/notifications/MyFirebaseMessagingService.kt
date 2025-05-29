@@ -20,6 +20,11 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
+import com.example.bejam.data.FirestoreManager
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
@@ -51,6 +56,18 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     @SuppressLint("MissingPermission")
     override fun onMessageReceived(msg: RemoteMessage) {
         ensureChannel(this)                // ← make sure it exists
+
+        // Clear today's selections for the current user when the daily notification arrives
+        FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    FirestoreManager.clearTodaySelections(uid)
+                } catch (e: Exception) {
+                    Log.e("DailyReset", "Error clearing today's selections", e)
+                }
+            }
+        }
+
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }

@@ -26,6 +26,22 @@ exports.sendDailyReminder = functions.https.onRequest(async (req, res) => {
   try {
     const response = await admin.messaging().send(message);
     console.log('✅ Successfully sent message:', response);
+
+    // --- DELETE TODAY'S DAILY SELECTIONS ---
+    const db = admin.firestore();
+    const now = new Date();
+    const startOfDay = new Date(now.setHours(0,0,0,0)).getTime();
+    const endOfDay   = new Date(now.setHours(24,0,0,0)).getTime();
+    const snap = await db.collection('daily_selections')
+      .where('timestamp', '>=', startOfDay)
+      .where('timestamp', '<', endOfDay)
+      .get();
+    const batch = db.batch();
+    snap.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+    console.log(`Cleared ${snap.size} daily selections.`);
+    // --- END DELETE ---
+
     res.status(200).send('OK');
   } catch (err) {
     console.error('❌ Error sending message:', err);
