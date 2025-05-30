@@ -104,6 +104,13 @@ class FriendsViewModel(app: Application) : AndroidViewModel(app) {
                 return@launch
             }
 
+            // Verhindere Freundschaftsanfrage an sich selbst
+            if (toUid == currentUid) {
+                _error.postValue("Du kannst dir selbst keine Freundschaftsanfrage senden.")
+                return@launch
+            }
+
+            // bereits verschickte Anfrage?
             val sentReq = firestore.collection("friend_requests")
                 .whereEqualTo("fromUid", currentUid)
                 .whereEqualTo("toUid", toUid)
