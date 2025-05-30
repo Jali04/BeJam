@@ -70,7 +70,16 @@ class FriendsFragment : Fragment() {
             adapter = reqAdapter
         }
         vm.incomingRequests.observe(viewLifecycleOwner) { list ->
-            reqAdapter.submitList(list)
+            if (list.isNullOrEmpty()) {
+                // Keine Anfragen ⇒ ausblenden
+                binding.incomingRequestsLabel.visibility = View.GONE
+                binding.requestsRecyclerView.visibility    = View.GONE
+            } else {
+                // Anfragen vorhanden ⇒ einblenden und Liste setzen
+                binding.incomingRequestsLabel.visibility = View.VISIBLE
+                binding.requestsRecyclerView.visibility    = View.VISIBLE
+                reqAdapter.submitList(list)
+            }
         }
 
         // 3) “Accepted friends” RecyclerView
