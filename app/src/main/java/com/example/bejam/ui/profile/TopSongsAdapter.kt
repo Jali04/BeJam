@@ -9,6 +9,8 @@ import com.bumptech.glide.Glide
 import com.example.bejam.R
 import com.example.bejam.data.model.Track
 import com.example.bejam.databinding.ItemTopSongBinding
+import androidx.cardview.widget.CardView
+import androidx.core.content.ContextCompat
 
 class TopSongsAdapter(
     private val tracks: List<Track>
@@ -16,13 +18,37 @@ class TopSongsAdapter(
 
     inner class VH(private val b: ItemTopSongBinding)
         : RecyclerView.ViewHolder(b.root) {
-        fun bind(track: Track) {
+        fun bind(track: Track, position: Int) {
             b.textSongTitle.text = track.name
             b.textSongArtist.text = track.artists.joinToString { it.name }
             Glide.with(b.root)
                 .load(track.album.images.firstOrNull()?.url)
                 .placeholder(R.drawable.placeholder_profile)
                 .into(b.imageSongArt)
+
+            // Highlight the first item with gold background and black text
+            val card = b.root as CardView
+            if (position == 0) {
+                card.setCardBackgroundColor(
+                    ContextCompat.getColor(b.root.context, R.color.goldHighlight)
+                )
+                b.textSongTitle.setTextColor(
+                    ContextCompat.getColor(b.root.context, R.color.black)
+                )
+                b.textSongArtist.setTextColor(
+                    ContextCompat.getColor(b.root.context, R.color.black)
+                )
+            } else {
+                card.setCardBackgroundColor(
+                    ContextCompat.getColor(b.root.context, R.color.defaultCardBg)
+                )
+                b.textSongTitle.setTextColor(
+                    ContextCompat.getColor(b.root.context, R.color.defaultTextColor)
+                )
+                b.textSongArtist.setTextColor(
+                    ContextCompat.getColor(b.root.context, R.color.defaultTextColor)
+                )
+            }
 
             b.root.setOnClickListener {
                 // open in Spotify
@@ -41,5 +67,5 @@ class TopSongsAdapter(
 
     override fun getItemCount() = tracks.size
     override fun onBindViewHolder(holder: VH, position: Int) =
-        holder.bind(tracks[position])
+        holder.bind(tracks[position], position)
 }
