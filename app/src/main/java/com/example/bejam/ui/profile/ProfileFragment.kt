@@ -17,9 +17,11 @@ import com.example.bejam.data.model.DailySelection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.widget.Toast // --- geändert ---
 import com.example.bejam.ui.profile.TopSongsAdapter
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.ktx.firestore
+import com.example.bejam.auth.SpotifyAuthManager // --- geändert ---
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.tasks.await
@@ -40,6 +42,9 @@ class ProfileFragment : Fragment() {
     private var _binding: FragmentProfileBinding? = null
     private val b get() = _binding!!
 
+    // --- geändert ---
+    private lateinit var authManager: SpotifyAuthManager
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -49,9 +54,38 @@ class ProfileFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        authManager = SpotifyAuthManager(requireContext()) // --- geändert ---
+
+        setupLoginLogoutUI() // --- geändert --- (siehe neue Methode weiter unten)
+
         loadUserProfile()
         loadSelectedSong()
         loadTopSongs()
+    }
+
+    // --- NEU: Login/Logout UI Setup
+    private fun setupLoginLogoutUI() {
+        val prefs = requireContext().getSharedPreferences("auth", Context.MODE_PRIVATE)
+        val accessToken = prefs.getString("access_token", null)
+        if (accessToken != null) {
+            b.spotifyLoginButton.visibility = View.GONE
+            b.spotifyLogoutButton.visibility = View.VISIBLE
+        } else {
+            b.spotifyLoginButton.visibility = View.VISIBLE
+            b.spotifyLogoutButton.visibility = View.GONE
+        }
+
+        b.spotifyLoginButton.setOnClickListener {
+            authManager.startLogin()
+        }
+        b.spotifyLogoutButton.setOnClickListener {
+            authManager.logout()
+            b.spotifyLoginButton.visibility = View.VISIBLE
+            b.spotifyLogoutButton.visibility = View.GONE
+            // Optional: Profilbild zurücksetzen, falls du willst:
+            // b.profileImageLarge.setImageResource(R.drawable.placeholder_profile)
+        }
     }
 
     private fun loadUserProfile() {

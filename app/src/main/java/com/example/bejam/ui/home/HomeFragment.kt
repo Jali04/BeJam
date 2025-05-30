@@ -14,12 +14,10 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.observe
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.example.bejam.R
-import com.example.bejam.auth.SpotifyAuthManager
 import com.example.bejam.data.RetrofitClient
 import com.example.bejam.data.model.DailySelection
 import com.example.bejam.databinding.FragmentHomeBinding
@@ -44,7 +42,6 @@ class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
 
-    private lateinit var authManager: SpotifyAuthManager
     private lateinit var adapter: TrackAdapter
     private lateinit var feedAdapter: FeedAdapter
     private var player: ExoPlayer? = null
@@ -56,25 +53,21 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         friendsViewModel = ViewModelProvider(requireActivity())[FriendsViewModel::class.java]
-        // feedViewModel = ViewModelProvider(this)[FeedViewModel::class.java]
 
         friendsViewModel.friendUids.observe(viewLifecycleOwner) { friendUids ->
             val myUid = friendsViewModel.currentUid
             val allUids = friendUids + myUid
             friendsViewModel.loadProfilesForUids(allUids)
-            // Observe today's feed (friends + self)
             feedViewModel.observeTodayFeed(allUids)
                 .observe(viewLifecycleOwner) { list ->
                     feedAdapter.submitList(list)
                 }
-            // observeLiveFeed(allUids) // Commented out as no longer needed
         }
 
         friendsViewModel.profileMap.observe(viewLifecycleOwner) { map ->
             feedAdapter.setProfileMap(map)
         }
 
-        // Fehler/Erfolg Like-Feedback
         feedViewModel.likeResult.observe(viewLifecycleOwner) { success ->
             if (!success) Toast.makeText(context, "Konnte Like nicht speichern", Toast.LENGTH_SHORT).show()
         }
@@ -86,7 +79,6 @@ class HomeFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
-        authManager = SpotifyAuthManager(requireContext())
         val prefs = requireContext().getSharedPreferences("auth", Context.MODE_PRIVATE)
 
         // SEARCH BAR & TRACKS RECYCLERVIEW SETUP
@@ -108,7 +100,6 @@ class HomeFragment : Fragment() {
                 }
             },
             onSelectClick = { track ->
-                // Navigate to ShareFragment with args
                 val action = HomeFragmentDirections
                     .actionHomeFragmentToShareFragment(
                         track.id,
@@ -132,15 +123,26 @@ class HomeFragment : Fragment() {
                 findNavController().navigate(action)
             }
         )
-
         binding.feedRecyclerView.layoutManager = LinearLayoutManager(context)
         binding.feedRecyclerView.adapter = feedAdapter
 
-        // SEARCH BAR HOOK
+        val searchResultsContainer = binding.searchResultsContainer
+        binding.searchBarCard.cardElevation = 8f
+        binding.searchEditText.setOnFocusChangeListener { _, hasFocus ->
+            binding.searchBarCard.cardElevation = if (hasFocus) 16f else 8f
+        }
+
+        // SEARCH BAR HOOK – nur diesen Block ändern!
         binding.searchEditText.addTextChangedListener(afterTextChanged = { editable ->
             val q = editable?.toString()?.trim().orEmpty()
             if (q.length < 3) {
-                binding.tracksRecyclerView.visibility = View.GONE
+                if (searchResultsContainer.visibility == View.VISIBLE) {
+                    searchResultsContainer.animate()
+                        .alpha(0f)
+                        .setDuration(180)
+                        .withEndAction { searchResultsContainer.visibility = View.GONE }
+                        .start()
+                }
                 return@addTextChangedListener
             }
             lifecycleScope.launch(Dispatchers.IO) {
@@ -149,7 +151,11 @@ class HomeFragment : Fragment() {
                     val resp = RetrofitClient.spotifyApi.searchTracks("Bearer $token", q)
                     withContext(Dispatchers.Main) {
                         adapter.submitList(resp.tracks.items)
-                        binding.tracksRecyclerView.visibility = View.VISIBLE
+                        if (searchResultsContainer.visibility != View.VISIBLE) {
+                            searchResultsContainer.alpha = 0f
+                            searchResultsContainer.visibility = View.VISIBLE
+                            searchResultsContainer.animate().alpha(1f).setDuration(180).start()
+                        }
                     }
                 } catch (e: HttpException) {
                     val code = e.code()
@@ -157,33 +163,11 @@ class HomeFragment : Fragment() {
                     Log.e("SpotifySearch", "HTTP $code: $err")
                     if (code == 401) {
                         withContext(Dispatchers.Main) {
-                            SpotifyAuthManager.refreshAccessToken(requireContext()) { success ->
-                                requireActivity().runOnUiThread {
-                                    if (success) {
-                                        lifecycleScope.launch(Dispatchers.IO) {
-                                            val newToken = prefs.getString("access_token", "") ?: ""
-                                            val retry = RetrofitClient.spotifyApi
-                                                .searchTracks("Bearer $newToken", q)
-                                            withContext(Dispatchers.Main) {
-                                                adapter.submitList(retry.tracks.items)
-                                                binding.tracksRecyclerView.visibility = View.VISIBLE
-                                            }
-                                        }
-                                    } else {
-                                        Toast.makeText(
-                                            requireContext(),
-                                            "Session expired. Please log in again.",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                        authManager.logout()
-                                        binding.spotifyLoginButton.visibility = View.VISIBLE
-                                        binding.spotifyLogoutButton.visibility = View.GONE
-                                        binding.profileImageView.setImageResource(
-                                            com.example.bejam.R.drawable.placeholder_profile
-                                        )
-                                    }
-                                }
-                            }
+                            Toast.makeText(
+                                requireContext(),
+                                "Session expired. Please log in again.",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     } else {
                         withContext(Dispatchers.Main) {
@@ -205,114 +189,8 @@ class HomeFragment : Fragment() {
             }
         })
 
-        // SPOTIFY LOGIN STATE
-        val accessToken = prefs.getString("access_token", null)
-        if (accessToken != null) {
-            binding.spotifyLoginButton.visibility = View.GONE
-            binding.spotifyLogoutButton.visibility = View.VISIBLE
-            fetchUserProfile(accessToken)
-        } else {
-            binding.spotifyLoginButton.visibility = View.VISIBLE
-            binding.spotifyLogoutButton.visibility = View.GONE
-        }
-
-        binding.spotifyLoginButton.setOnClickListener {
-            authManager.startLogin()
-        }
-
-        binding.spotifyLogoutButton.setOnClickListener {
-            authManager.logout()
-            binding.spotifyLoginButton.visibility = View.VISIBLE
-            binding.spotifyLogoutButton.visibility = View.GONE
-            binding.profileImageView.setImageResource(
-                com.example.bejam.R.drawable.placeholder_profile
-            )
-        }
 
         return binding.root
-    }
-
-    private fun observeLiveFeed(userIds: Collection<String>) {
-        Log.d("FEED", "Feed-UserIds: $userIds")
-        // Vorherige Listener entfernen (wichtig beim erneuten Aufruf!)
-        feedListeners.forEach { it.remove() }
-        feedListeners.clear()
-
-        if (userIds.isEmpty()) {
-            feedAdapter.submitList(emptyList())
-            return
-        }
-
-        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
-        val db = Firebase.firestore
-        val selections = mutableListOf<DailySelection>()
-
-        userIds.chunked(10).forEach { chunk ->
-            val query = db.collection("daily_selections")
-                .whereIn("userId", chunk)
-
-            val listener = query.addSnapshotListener { snap, err ->
-                if (err != null) {
-                    feedAdapter.submitList(emptyList())
-                    return@addSnapshotListener
-                }
-                val posts = snap!!.documents.mapNotNull { doc ->
-                    val sel = doc.toObject(DailySelection::class.java)
-                    val docId = doc.id
-                    // Nur heutige Posts!
-                    if (sel != null && doc.id.endsWith(today)) {
-                        sel.copy(id = doc.id)
-                    } else null
-                }
-                selections.removeAll { s -> chunk.contains(s.userId) }
-                selections.addAll(posts)
-                val sorted = selections.sortedWith(
-                    compareByDescending<DailySelection> { it.likes.size }
-                        .thenByDescending { it.timestamp }
-                )
-                feedAdapter.submitList(sorted)
-            }
-            feedListeners.add(listener)
-        }
-    }
-
-    private fun fetchUserProfile(accessToken: String) {
-        val client = OkHttpClient()
-        val request = Request.Builder()
-            .url("https://api.spotify.com/v1/me")
-            .addHeader("Authorization", "Bearer $accessToken")
-            .build()
-
-        client.newCall(request).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                // log if you want
-            }
-
-            override fun onResponse(call: Call, response: Response) {
-                val data = response.body?.string()
-                if (response.isSuccessful && !data.isNullOrEmpty()) {
-                    try {
-                        val json = JSONObject(data)
-                        val imageUrl = json.optJSONArray("images")
-                            ?.takeIf { it.length() > 0 }
-                            ?.getJSONObject(0)
-                            ?.optString("url")
-
-                        requireActivity().runOnUiThread {
-                            if (!imageUrl.isNullOrEmpty()) {
-                                Glide.with(requireContext())
-                                    .load(imageUrl)
-                                    .placeholder(R.drawable.placeholder_profile)
-                                    .into(binding.profileImageView)
-                            } else {
-                                binding.profileImageView
-                                    .setImageResource(R.drawable.placeholder_profile)
-                            }
-                        }
-                    } catch (_: Exception) { /**/ }
-                }
-            }
-        })
     }
 
     override fun onDestroyView() {
