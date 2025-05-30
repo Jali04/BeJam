@@ -28,43 +28,74 @@ class ShareFragment : Fragment() {
     }.root
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        // Populate UI
         binding.trackName.text = args.trackName
         binding.artistNames.text = args.artistNames
         Glide.with(this)
             .load(args.imageUrl)
             .into(binding.albumImage)
 
-        binding.postButton.setOnClickListener {
-            val comment = binding.commentEditText.text.toString().trim()
-            val firebaseUser = FirebaseAuth.getInstance().currentUser
-            if (firebaseUser != null) {
-                val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-                val docId = "${firebaseUser.uid}_$today"
-
-                val selection = DailySelection(
-                    id = docId,
-                    userId = firebaseUser.uid,
-                    songId = args.trackId,
-                    songName = args.trackName,
-                    artist = args.artistNames,
-                    imageUrl = args.imageUrl,
-                    comment = comment,
-                    likes = emptyList(),              // initialize likes array
-                    timestamp = System.currentTimeMillis()
-                )
-
-                Firebase.firestore.collection("daily_selections")
-                    .document(docId)
-                    .set(selection)
-                    .addOnSuccessListener {
-                        Toast.makeText(requireContext(), "Posted “${args.trackName}”!", Toast.LENGTH_SHORT).show()
-                        findNavController().popBackStack()
+        val firebaseUser = FirebaseAuth.getInstance().currentUser
+        if (firebaseUser != null) {
+            val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+            val docId = "${firebaseUser.uid}_$today"
+            // Check if already posted today
+            Firebase.firestore.collection("daily_selections")
+                .document(docId)
+                .get()
+                .addOnSuccessListener { doc ->
+                    if (doc.exists()) {
+                        // Already posted today, disable post button
+                        binding.postButton.isEnabled = false
+                        binding.postButton.text = "Du hast heute schon einen Song gepostet!"
+                        Toast.makeText(requireContext(), "Du hast heute schon einen Song gepostet!", Toast.LENGTH_LONG).show()
+                    } else {
+                        // Enable post button
+                        binding.postButton.isEnabled = true
+                        binding.postButton.text = "Post"
+                        binding.postButton.setOnClickListener {
+                            postSong(docId)
+                        }
                     }
-                    .addOnFailureListener {
-                        Toast.makeText(requireContext(), "Failed to post selection.", Toast.LENGTH_SHORT).show()
+                }
+                .addOnFailureListener {
+                    // In case of error, allow posting
+                    binding.postButton.isEnabled = true
+                    binding.postButton.text = "Post"
+                    binding.postButton.setOnClickListener {
+                        postSong(docId)
                     }
-            }
+                }
+        }
+    }
+
+    private fun postSong(docId: String) {
+        val comment = binding.commentEditText.text.toString().trim()
+        val firebaseUser = FirebaseAuth.getInstance().currentUser
+        if (firebaseUser != null) {
+            val selection = DailySelection(
+                id = docId,
+                userId = firebaseUser.uid,
+                songId = args.trackId,
+                songName = args.trackName,
+                artist = args.artistNames,
+                imageUrl = args.imageUrl,
+                comment = comment,
+                likes = emptyList(),
+                timestamp = System.currentTimeMillis()
+            )
+
+            Firebase.firestore.collection("daily_selections")
+                .document(docId)
+                .set(selection)
+                .addOnSuccessListener {
+                    Toast.makeText(requireContext(), "Posted “${args.trackName}”!", Toast.LENGTH_SHORT).show()
+                    binding.postButton.isEnabled = false
+                    binding.postButton.text = "Du hast heute schon einen Song gepostet!"
+                    findNavController().popBackStack()
+                }
+                .addOnFailureListener {
+                    Toast.makeText(requireContext(), "Failed to post selection.", Toast.LENGTH_SHORT).show()
+                }
         }
     }
 
