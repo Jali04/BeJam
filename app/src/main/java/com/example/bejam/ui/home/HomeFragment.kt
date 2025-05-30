@@ -89,6 +89,24 @@ class HomeFragment : Fragment() {
         authManager = SpotifyAuthManager(requireContext())
         val prefs = requireContext().getSharedPreferences("auth", Context.MODE_PRIVATE)
 
+        // Refresh Spotify access token immediately when the view loads
+        SpotifyAuthManager.refreshAccessToken(requireContext()) { success, errorMessage ->
+            requireActivity().runOnUiThread {
+                if (success) {
+                    val newToken = prefs.getString("access_token", null)
+                    if (!newToken.isNullOrEmpty()) {
+                        // Show logout, hide login
+                        binding.spotifyLoginButton.visibility = View.GONE
+                        binding.spotifyLogoutButton.visibility = View.VISIBLE
+                        // Update profile image with fresh token
+                        fetchUserProfile(newToken)
+                    }
+                } else {
+                    Log.e("SpotifyAuth", "Token refresh error: $errorMessage")
+                }
+            }
+        }
+
         // SEARCH BAR & TRACKS RECYCLERVIEW SETUP
         adapter = TrackAdapter(
             onPlayClick = { track ->
@@ -157,7 +175,7 @@ class HomeFragment : Fragment() {
                     Log.e("SpotifySearch", "HTTP $code: $err")
                     if (code == 401) {
                         withContext(Dispatchers.Main) {
-                            SpotifyAuthManager.refreshAccessToken(requireContext()) { success ->
+                            SpotifyAuthManager.refreshAccessToken(requireContext()) { success, errorMessage ->
                                 requireActivity().runOnUiThread {
                                     if (success) {
                                         lifecycleScope.launch(Dispatchers.IO) {
@@ -170,17 +188,7 @@ class HomeFragment : Fragment() {
                                             }
                                         }
                                     } else {
-                                        Toast.makeText(
-                                            requireContext(),
-                                            "Session expired. Please log in again.",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                        authManager.logout()
-                                        binding.spotifyLoginButton.visibility = View.VISIBLE
-                                        binding.spotifyLogoutButton.visibility = View.GONE
-                                        binding.profileImageView.setImageResource(
-                                            com.example.bejam.R.drawable.placeholder_profile
-                                        )
+                                        Log.e("SpotifySearch", "Token refresh error: $errorMessage")
                                     }
                                 }
                             }
