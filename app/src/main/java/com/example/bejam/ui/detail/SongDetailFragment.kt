@@ -2,6 +2,8 @@ package com.example.bejam.ui.detail
 
 import android.app.AlertDialog
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -25,6 +27,8 @@ class SongDetailFragment : Fragment() {
     private var _binding: FragmentSongDetailBinding? = null
     private val binding get() = _binding!!
 
+    private var spotifySongId: String? = null
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
@@ -37,22 +41,35 @@ class SongDetailFragment : Fragment() {
         Firebase.firestore.collection("daily_selections").document(id)
             .get().addOnSuccessListener { doc ->
                 if (doc.exists()) {
-                    val sel = doc.toObject(com.example.bejam.data.model.DailySelection::class.java)
+                    val sel = doc.toObject(DailySelection::class.java)
                     if (sel != null) {
+                        spotifySongId = sel.songId
                         binding.songTitle.text = sel.songName
                         binding.artistName.text = sel.artist
                         binding.comment.text = sel.comment ?: ""
                         Glide.with(this).load(sel.imageUrl)
                             .placeholder(com.example.bejam.R.drawable.placeholder_album)
                             .into(binding.albumCover)
-                        // Button-Logik zum Spotify-Liken einbauen (kommt noch)
+                        // Play-Button nur sichtbar, wenn SongId vorhanden
+                        binding.playButton.visibility = if (!sel.songId.isNullOrEmpty()) View.VISIBLE else View.GONE
                     }
                 }
             }
 
-        // Button click → später Spotify-Logik hier!
+        // Playbutton (unter Albumcover)
+        binding.playButton.setOnClickListener {
+            val songId = spotifySongId
+            if (!songId.isNullOrEmpty()) {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("spotify:track:$songId"))
+                intent.putExtra(Intent.EXTRA_REFERRER, Uri.parse("android-app://" + requireContext().packageName))
+                startActivity(intent)
+            } else {
+                Toast.makeText(requireContext(), "Kein Spotify-Link verfügbar.", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // Like-Button (Spotify Likes)
         binding.likeOnSpotifyButton.setOnClickListener {
-            // SharedPreferences & Token
             val prefs = requireContext().getSharedPreferences("auth", Context.MODE_PRIVATE)
             val token = prefs.getString("access_token", null)
             if (token.isNullOrEmpty()) {
@@ -62,15 +79,12 @@ class SongDetailFragment : Fragment() {
                 return@setOnClickListener
             }
 
-            // DailySelection-ID
             val docId = arguments?.getString("dailySelectionId") ?: return@setOnClickListener
 
-            // Dialog
             AlertDialog.Builder(requireContext())
                 .setTitle("Zu Favoriten hinzufügen")
                 .setMessage("Möchtest du diesen Song wirklich zu deinen Spotify-Favoriten hinzufügen?")
                 .setPositiveButton("Ja") { _, _ ->
-                    // **Hier direkt ausführen:**
                     Firebase.firestore
                         .collection("daily_selections")
                         .document(docId)
@@ -84,7 +98,6 @@ class SongDetailFragment : Fragment() {
                                     Toast.LENGTH_SHORT).show()
                                 return@addOnSuccessListener
                             }
-                            // Request bauen und senden
                             OkHttpClient().newCall(
                                 Request.Builder()
                                     .url("https://api.spotify.com/v1/me/tracks?ids=$spotifyTrackId")

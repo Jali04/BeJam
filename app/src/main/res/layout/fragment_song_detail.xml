@@ -13,6 +13,18 @@
         android:layout_gravity="center_horizontal"
         android:src="@drawable/placeholder_album" />
 
+
+    <ImageButton
+        android:id="@+id/playButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="16dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/play_song"
+        android:src="@drawable/ic_play_arrow"
+        android:tint="?attr/colorPrimary" />
+
     <TextView
         android:id="@+id/songTitle"
         android:layout_width="match_parent"
