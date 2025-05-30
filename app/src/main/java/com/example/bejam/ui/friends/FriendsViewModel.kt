@@ -146,6 +146,10 @@ class FriendsViewModel(app: Application) : AndroidViewModel(app) {
         _requestSent.value = null
     }
 
+    fun clearError() {
+        _error.postValue(null)
+    }
+
     fun respond(req: Request, accept: Boolean) = viewModelScope.launch(Dispatchers.IO) {
         val myUid = auth.currentUser?.uid ?: return@launch
         try {

@@ -1,6 +1,8 @@
 package com.example.bejam.ui.friends
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.*
 import android.widget.Toast
 import androidx.fragment.app.Fragment
@@ -126,6 +128,13 @@ class FriendsFragment : Fragment() {
             binding.errorText.text = msg
             binding.errorText.visibility =
                 if (msg != null) View.VISIBLE else View.GONE
+
+            if (msg != null) {
+                // nach 3 Sekunden wieder ausblenden
+                Handler(Looper.getMainLooper()).postDelayed({
+                    vm.clearError()
+                }, 6000)
+            }
         }
     }
 
