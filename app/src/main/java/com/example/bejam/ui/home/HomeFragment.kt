@@ -14,10 +14,12 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.observe
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.example.bejam.R
+import com.example.bejam.auth.SpotifyAuthManager
 import com.example.bejam.data.RetrofitClient
 import com.example.bejam.data.model.DailySelection
 import com.example.bejam.databinding.FragmentHomeBinding
@@ -42,6 +44,7 @@ class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
 
+    private lateinit var authManager: SpotifyAuthManager
     private lateinit var adapter: TrackAdapter
     private lateinit var feedAdapter: FeedAdapter
     private var player: ExoPlayer? = null
@@ -58,6 +61,7 @@ class HomeFragment : Fragment() {
             val myUid = friendsViewModel.currentUid
             val allUids = friendUids + myUid
             friendsViewModel.loadProfilesForUids(allUids)
+            // Observe today's feed (friends + self)
             feedViewModel.observeTodayFeed(allUids)
                 .observe(viewLifecycleOwner) { list ->
                     feedAdapter.submitList(list)
@@ -68,6 +72,7 @@ class HomeFragment : Fragment() {
             feedAdapter.setProfileMap(map)
         }
 
+        // Fehler/Erfolg Like-Feedback
         feedViewModel.likeResult.observe(viewLifecycleOwner) { success ->
             if (!success) Toast.makeText(context, "Konnte Like nicht speichern", Toast.LENGTH_SHORT).show()
         }
@@ -79,6 +84,7 @@ class HomeFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
+        authManager = SpotifyAuthManager(requireContext())
         val prefs = requireContext().getSharedPreferences("auth", Context.MODE_PRIVATE)
 
         // SEARCH BAR & TRACKS RECYCLERVIEW SETUP

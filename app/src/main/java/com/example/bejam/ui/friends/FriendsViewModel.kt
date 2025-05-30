@@ -94,10 +94,15 @@ class FriendsViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) {
             val firestore = Firebase.firestore
 
-            val targetSnapshot = firestore.collection("user_profiles")
-                .whereEqualTo("spotifyId", searchInput)
-                .get().await()
-            val targetDoc = targetSnapshot.documents.firstOrNull()
+            // Try matching by spotifyId, then email, then displayName
+            val profiles = firestore.collection("user_profiles")
+            val bySpotify = profiles.whereEqualTo("spotifyId", searchInput).get().await().documents.firstOrNull()
+            val byEmail   = if (bySpotify == null) profiles.whereEqualTo("email", searchInput).get().await().documents.firstOrNull() else null
+            val byName    = if (bySpotify == null && byEmail == null)
+                                profiles.whereEqualTo("displayName", searchInput).get().await().documents.firstOrNull()
+                            else null
+
+            val targetDoc = bySpotify ?: byEmail ?: byName
             val toUid = targetDoc?.id
             if (toUid == null) {
                 _error.postValue("Kein Nutzer gefunden mit dieser Spotify-ID, Username oder E-Mail.")

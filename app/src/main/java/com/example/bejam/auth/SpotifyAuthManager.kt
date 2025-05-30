@@ -83,12 +83,12 @@ class SpotifyAuthManager(private val context: Context) {
 
     companion object {
         private const val CLIENT_ID = "f929decae6b84dad9fa7ce752d50c7ec"
-        fun refreshAccessToken(context: Context, onComplete: ((Boolean) -> Unit)? = null) {
+        fun refreshAccessToken(context: Context, onComplete: ((Boolean, String?) -> Unit)? = null) {
             val prefs = context.getSharedPreferences("auth", Context.MODE_PRIVATE)
             val refreshToken = prefs.getString("refresh_token", null)
             if (refreshToken.isNullOrEmpty()) {
                 Log.e("TOKEN_REFRESH", "No refresh token available.")
-                onComplete?.invoke(false)
+                onComplete?.invoke(false, "No refresh token available.")
                 return
             }
 
@@ -107,7 +107,7 @@ class SpotifyAuthManager(private val context: Context) {
             client.newCall(request).enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
                     Log.e("TOKEN_REFRESH", "Refresh failed: ${e.message}")
-                    onComplete?.invoke(false)
+                    onComplete?.invoke(false, e.message)
                 }
 
                 override fun onResponse(call: Call, response: Response) {
@@ -128,14 +128,14 @@ class SpotifyAuthManager(private val context: Context) {
                                     apply()
                                 }
                                 Log.d("TOKEN_REFRESH", "New access token: $newAccessToken, expires in $expiresIn seconds.")
-                                onComplete?.invoke(true)
+                                onComplete?.invoke(true, null)
                             } catch (e: Exception) {
                                 Log.e("TOKEN_REFRESH", "Error parsing token refresh response: ${e.message}")
-                                onComplete?.invoke(false)
+                                onComplete?.invoke(false, e.message)
                             }
                         } else {
                             Log.e("TOKEN_REFRESH", "Refresh response not successful: $responseData")
-                            onComplete?.invoke(false)
+                            onComplete?.invoke(false, responseData)
                         }
                     }
                 }

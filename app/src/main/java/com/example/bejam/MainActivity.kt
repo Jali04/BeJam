@@ -63,13 +63,13 @@ class MainActivity : AppCompatActivity() {
 
         if (expirationTime == 0L || currentTime >= expirationTime) {
             // Token is missing or expired — attempt refresh
-            refreshAccessToken(this) { success ->
+            refreshAccessToken(this) { success, errorMessage ->
                 if (success) {
                     // Token refreshed, update UI or proceed as logged in
                     Log.d("MAIN", "Token refreshed successfully.")
                 } else {
                     // Refresh failed: possibly prompt user to log in again.
-                    Log.d("MAIN", "Token refresh failed; user may need to log in again.")
+                    Log.d("MAIN", "Token refresh failed: $errorMessage")
                 }
             }
         } else {
