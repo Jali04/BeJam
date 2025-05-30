@@ -27,7 +27,6 @@ import com.example.bejam.ui.friends.FriendsViewModel
 import com.example.bejam.ui.friends.UserProfile
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ExoPlayer
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
@@ -38,6 +37,8 @@ import okhttp3.*
 import org.json.JSONObject
 import retrofit2.HttpException
 import java.io.IOException
+import com.google.firebase.auth.FirebaseAuth
+import androidx.core.view.isVisible
 
 class HomeFragment : Fragment() {
 
@@ -55,7 +56,36 @@ class HomeFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        // Show login prompt if user is not authenticated
+        val user = FirebaseAuth.getInstance().currentUser
+        if (user == null) {
+            binding.loginPromptContainer.isVisible = true
+            binding.backgroundContent.isVisible = false
+            binding.overlayContainer.isVisible = false
+            binding.loginButton.setOnClickListener {
+                findNavController().navigate(R.id.navigation_profile)
+            }
+            return
+        }
         friendsViewModel = ViewModelProvider(requireActivity())[FriendsViewModel::class.java]
+
+        // Check and toggle overlay if the user hasn't posted today
+        val currentUid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        feedViewModel.checkIfPostedToday(currentUid)
+        feedViewModel.hasPostedToday.observe(viewLifecycleOwner) { posted ->
+            binding.overlayContainer.isVisible = !posted
+            binding.backgroundContent.isVisible = posted
+            if (posted) {
+                // load today's feed only once user has posted
+                friendsViewModel.friendUids.value?.let { friendUids ->
+                    val allUids = friendUids + currentUid
+                    feedViewModel.observeTodayFeed(allUids)
+                        .observe(viewLifecycleOwner) { list ->
+                            feedAdapter.submitList(list)
+                        }
+                }
+            }
+        }
 
         friendsViewModel.friendUids.observe(viewLifecycleOwner) { friendUids ->
             val myUid = friendsViewModel.currentUid
@@ -133,10 +163,6 @@ class HomeFragment : Fragment() {
         binding.feedRecyclerView.adapter = feedAdapter
 
         val searchResultsContainer = binding.searchResultsContainer
-        binding.searchBarCard.cardElevation = 8f
-        binding.searchEditText.setOnFocusChangeListener { _, hasFocus ->
-            binding.searchBarCard.cardElevation = if (hasFocus) 16f else 8f
-        }
 
         // SEARCH BAR HOOK – nur diesen Block ändern!
         binding.searchEditText.addTextChangedListener(afterTextChanged = { editable ->
@@ -194,7 +220,6 @@ class HomeFragment : Fragment() {
                 }
             }
         })
-
 
         return binding.root
     }

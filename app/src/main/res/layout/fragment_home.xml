@@ -1,76 +1,156 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootFrame"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:orientation="vertical">
+    android:background="#18151c">
 
-    <!-- Schöne Suchleiste in CardView -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/searchBarCard"
+    <!-- 1) Background Feed Container -->
+    <FrameLayout
+        android:id="@+id/backgroundContent"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        app:cardElevation="0dp"
-        app:cardCornerRadius="0dp"
-        app:cardBackgroundColor="@android:color/transparent">
+        android:layout_height="match_parent">
 
-        <EditText
-            android:id="@+id/searchEditText"
+        <LinearLayout
+            android:orientation="vertical"
             android:layout_width="match_parent"
-            android:layout_height="44dp"
-            android:hint="Search for a track"
-            android:inputType="text"
-            android:background="@drawable/search_edittext_bg"
-            android:padding="12dp"
-            android:textColor="#fff"
-            android:textColorHint="#9986a7"
-            android:textSize="16sp"
-            />
-    </androidx.cardview.widget.CardView>
+            android:layout_height="match_parent">
 
-    <!-- Suchergebnisse: smooth herunterrollen -->
-    <androidx.core.widget.NestedScrollView
-        android:id="@+id/searchResultsContainer"
+            <!-- Feed Title -->
+            <TextView
+                android:id="@+id/feedTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Today's Posts"
+                android:textStyle="bold"
+                android:textSize="18sp"
+                android:textColor="#FFFFFF"
+                android:padding="12dp"
+                android:background="#241e31" />
+
+            <!-- Feed RecyclerView -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/feedRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:paddingTop="4dp"
+                android:paddingBottom="8dp"
+                android:clipToPadding="false"/>
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- 2) Overlay Prompt Container -->
+    <FrameLayout
+        android:id="@+id/overlayContainer"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:fillViewport="false"
+        android:layout_height="match_parent"
         android:visibility="gone"
-        android:background="@drawable/search_results_bg"
-        android:elevation="2dp"
-        android:layout_marginStart="20dp"
-        android:layout_marginEnd="20dp"
-        android:layout_marginBottom="8dp"
-        android:clipToPadding="false"
-        android:animateLayoutChanges="true">
+        android:background="#88000000">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/tracksRecyclerView"
+        <LinearLayout
+            android:orientation="vertical"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:clipToPadding="false"/>
-    </androidx.core.widget.NestedScrollView>
+            android:layout_height="match_parent">
 
-    <!-- Feed Title -->
-    <TextView
-        android:id="@+id/feedTitle"
+            <!-- Top Spacer (10%) -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="0.1" />
+
+            <!-- Center Prompt Window (80%) -->
+            <LinearLayout
+                android:id="@+id/postPromptWindow"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="0.8"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="10dp"
+                android:background="@drawable/rounded_window_bg_grey"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <!-- Prompt Text -->
+                <TextView
+                    android:id="@+id/promptText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="CHOOSE YOUR DAILY SONG!"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:gravity="center"
+                    android:paddingBottom="8dp" />
+
+                <!-- Search EditText -->
+                <EditText
+                    android:id="@+id/searchEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Search for a track"
+                    android:inputType="text"
+                    android:background="@drawable/search_edittext_bg"
+                    android:padding="12dp"
+                    android:textColor="#FFFFFF"
+                    android:textColorHint="#9986a7"
+                    android:textSize="16sp" />
+
+                <!-- Search Results Container -->
+                <androidx.core.widget.NestedScrollView
+                    android:id="@+id/searchResultsContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:fillViewport="true"
+                    android:clipToPadding="false"
+                    android:background="@drawable/rounded_window_bg_grey"
+                    android:padding="8dp">
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/tracksRecyclerView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingTop="8dp"
+                        android:paddingBottom="8dp"
+                        android:clipToPadding="false"/>
+                </androidx.core.widget.NestedScrollView>
+            </LinearLayout>
+
+            <!-- Bottom Spacer (10%) -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="0.15" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- 3) Login Prompt Container -->
+    <FrameLayout
+        android:id="@+id/loginPromptContainer"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Today's Posts"
-        android:textStyle="bold"
-        android:textSize="18sp"
-        android:textColor="#fff"
-        android:padding="12dp"
-        android:background="#241e31"/>
+        android:layout_height="match_parent"
+        android:visibility="gone"
+        android:background="#88000000">
 
-    <!-- Feed of posts -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/feedRecyclerView"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:paddingTop="4dp"
-        android:paddingBottom="8dp"
-        android:clipToPadding="false"/>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center">
 
-</LinearLayout>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Please log in to continue"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:padding="8dp"/>
+
+            <Button
+                android:id="@+id/loginButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="LOGIN"/>
+        </LinearLayout>
+    </FrameLayout>
+</FrameLayout>

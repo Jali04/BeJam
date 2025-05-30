@@ -10,8 +10,13 @@ import com.google.firebase.firestore.FirebaseFirestore
 import java.util.Calendar
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.LiveData
+import kotlinx.coroutines.tasks.await
+import java.time.LocalDate
 
 class FeedViewModel : ViewModel() {
+    // LiveData to track if the current user has posted today
+    private val _hasPostedToday = MutableLiveData<Boolean>(false)
+    val hasPostedToday: LiveData<Boolean> = _hasPostedToday
     private val db = Firebase.firestore
 
     private val _likeResult = MutableLiveData<Boolean>()
@@ -77,5 +82,22 @@ class FeedViewModel : ViewModel() {
                 }
         }
         return liveData
+    }
+
+    /** Check if user has posted a daily selection today */
+    fun checkIfPostedToday(uid: String) {
+        viewModelScope.launch {
+            try {
+                val todayId = "${uid}_${LocalDate.now()}"
+                val doc = Firebase.firestore
+                    .collection("daily_selections")
+                    .document(todayId)
+                    .get()
+                    .await()
+                _hasPostedToday.postValue(doc.exists())
+            } catch (e: Exception) {
+                _hasPostedToday.postValue(false)
+            }
+        }
     }
 }
