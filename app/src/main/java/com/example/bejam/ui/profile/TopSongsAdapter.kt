@@ -26,28 +26,53 @@ class TopSongsAdapter(
                 .placeholder(R.drawable.placeholder_profile)
                 .into(b.imageSongArt)
 
-            // Highlight the first item with gold background and black text
+            // Highlight top three positions: gold, silver, bronze
             val card = b.root as CardView
-            if (position == 0) {
-                card.setCardBackgroundColor(
-                    ContextCompat.getColor(b.root.context, R.color.goldHighlight)
-                )
-                b.textSongTitle.setTextColor(
-                    ContextCompat.getColor(b.root.context, R.color.black)
-                )
-                b.textSongArtist.setTextColor(
-                    ContextCompat.getColor(b.root.context, R.color.black)
-                )
-            } else {
-                card.setCardBackgroundColor(
-                    ContextCompat.getColor(b.root.context, R.color.defaultCardBg)
-                )
-                b.textSongTitle.setTextColor(
-                    ContextCompat.getColor(b.root.context, R.color.defaultTextColor)
-                )
-                b.textSongArtist.setTextColor(
-                    ContextCompat.getColor(b.root.context, R.color.defaultTextColor)
-                )
+            when (position) {
+                0 -> {
+                    card.setCardBackgroundColor(
+                        ContextCompat.getColor(card.context, R.color.goldHighlight)
+                    )
+                    b.textSongTitle.setTextColor(
+                        ContextCompat.getColor(card.context, R.color.black)
+                    )
+                    b.textSongArtist.setTextColor(
+                        ContextCompat.getColor(card.context, R.color.black)
+                    )
+                }
+                1 -> {
+                    card.setCardBackgroundColor(
+                        ContextCompat.getColor(card.context, R.color.silverHighlight)
+                    )
+                    b.textSongTitle.setTextColor(
+                        ContextCompat.getColor(card.context, R.color.black)
+                    )
+                    b.textSongArtist.setTextColor(
+                        ContextCompat.getColor(card.context, R.color.black)
+                    )
+                }
+                2 -> {
+                    card.setCardBackgroundColor(
+                        ContextCompat.getColor(card.context, R.color.bronzeHighlight)
+                    )
+                    b.textSongTitle.setTextColor(
+                        ContextCompat.getColor(card.context, R.color.black)
+                    )
+                    b.textSongArtist.setTextColor(
+                        ContextCompat.getColor(card.context, R.color.black)
+                    )
+                }
+                else -> {
+                    card.setCardBackgroundColor(
+                        ContextCompat.getColor(card.context, R.color.defaultCardBg)
+                    )
+                    b.textSongTitle.setTextColor(
+                        ContextCompat.getColor(card.context, R.color.defaultTextColor)
+                    )
+                    b.textSongArtist.setTextColor(
+                        ContextCompat.getColor(card.context, R.color.defaultTextColor)
+                    )
+                }
             }
 
             b.root.setOnClickListener {

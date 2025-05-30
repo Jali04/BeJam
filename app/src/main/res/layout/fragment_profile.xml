@@ -59,7 +59,8 @@
             android:padding="12dp"
             app:cardElevation="4dp"
             app:cardCornerRadius="16dp"
-            app:cardPreventCornerOverlap="false">
+            app:cardPreventCornerOverlap="false"
+            app:cardBackgroundColor="#800080">
 
             <LinearLayout
                 android:id="@+id/selectedSongContainer"

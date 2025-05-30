@@ -7,7 +7,10 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="defaultCardBg">#333333</color>
     <color name="goldHighlight">#FFD700</color>
+    <color name="silverHighlight">#C0C0C0</color>
+    <color name="bronzeHighlight">#CD7F32</color>
+    <color name="defaultCardBg">#333333</color>
+    <color name="highlightText">#000000</color>
     <color name="defaultTextColor">#DDDDDD</color>
 </resources>
