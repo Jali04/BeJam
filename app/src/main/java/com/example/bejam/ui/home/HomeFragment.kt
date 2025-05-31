@@ -1,6 +1,10 @@
 package com.example.bejam.ui.home
 
 import android.content.Context
+import android.content.BroadcastReceiver
+import android.content.Intent
+import android.content.IntentFilter
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -53,6 +57,35 @@ class HomeFragment : Fragment() {
     private val feedViewModel: FeedViewModel by viewModels()
 
     private val feedListeners = mutableListOf<ListenerRegistration>()
+
+    // Receiver to handle logout events and refresh UI
+    private val logoutReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            // Re-run the posted-today check and reload feed data
+            val currentUid = FirebaseAuth.getInstance().currentUser?.uid
+            if (currentUid != null) {
+                feedViewModel.checkIfPostedToday(currentUid)
+            } else {
+                // If no user, show login prompt and hide other containers
+                binding.loginPromptContainer.isVisible = true
+                binding.backgroundContent.isVisible = false
+                binding.overlayContainer.isVisible = false
+                // Clear the feed list to ensure the RecyclerView is empty
+                feedAdapter.submitList(emptyList())
+            }
+        }
+    }
+    override fun onResume() {
+        super.onResume()
+        LocalBroadcastManager.getInstance(requireContext())
+            .registerReceiver(logoutReceiver, IntentFilter("com.example.bejam.USER_LOGGED_OUT"))
+    }
+
+    override fun onPause() {
+        super.onPause()
+        LocalBroadcastManager.getInstance(requireContext())
+            .unregisterReceiver(logoutReceiver)
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -114,6 +147,14 @@ class HomeFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
+        // If no user is signed in, show login prompt and skip further initialization
+        val user = FirebaseAuth.getInstance().currentUser
+        if (user == null) {
+            binding.loginPromptContainer.isVisible = true
+            binding.backgroundContent.isVisible = false
+            binding.overlayContainer.isVisible = false
+            return binding.root
+        }
         authManager = SpotifyAuthManager(requireContext())
         val prefs = requireContext().getSharedPreferences("auth", Context.MODE_PRIVATE)
 

@@ -28,32 +28,23 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1) Ensure we have a Firebase user (anonymous if nobody’s signed in)
         val auth = FirebaseAuth.getInstance()
-        if (auth.currentUser == null) {
-            auth.signInAnonymously()
-                .addOnSuccessListener { result ->
-                    Log.d("AUTH", "Signed in anonymously as ${result.user!!.uid}")
-                    // now you're free to talk to Firestore / FriendsViewModel safely
-                }
-                .addOnFailureListener { e ->
-                    Log.e("AUTH", "Anonymous sign-in failed", e)
-                    Toast.makeText(this, "Auth error: ${e.message}", Toast.LENGTH_LONG).show()
-                }
-        }
-
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val navView: BottomNavigationView = binding.navView
+        // If no user is logged in, navigate to login screen
+        if (auth.currentUser == null) {
+            val navController = findNavController(R.id.nav_host_fragment_activity_main)
+            navController.navigate(R.id.navigation_profile)
+        }
 
+        val navView: BottomNavigationView = binding.navView
         val navController = findNavController(R.id.nav_host_fragment_activity_main)
         // Passing each menu ID as a set of Ids because each
         // menu should be considered as top level destinations.
         val appBarConfiguration = AppBarConfiguration(
             setOf(
                 R.id.navigation_home, R.id.navigation_friends, R.id.navigation_profile
-
             )
         )
 
@@ -86,7 +77,6 @@ class MainActivity : AppCompatActivity() {
                 1234
             )
         }
-
 
         setupActionBarWithNavController(navController, appBarConfiguration)
         navView.setupWithNavController(navController)

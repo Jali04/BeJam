@@ -92,7 +92,7 @@ object FirestoreManager {
     }
 
     /** Stream all friendships where userA == me OR userB == me */
-    fun observeFriends(myUid: String): Flow<List<Pair<String,String>>> = callbackFlow {
+    fun observeFriends(myUid: String): Flow<List<Pair<String, String>>> = callbackFlow {
         var latestA = emptyList<Pair<String, String>>()
         var latestB = emptyList<Pair<String, String>>()
 
@@ -103,10 +103,14 @@ object FirestoreManager {
                     close(err)
                     return@addSnapshotListener
                 }
-                latestA = snap!!.documents.map { doc ->
-                    Pair(doc.getString("userA")!!, doc.getString("userB")!!)
+                if (snap != null) {
+                    latestA = snap.documents.mapNotNull { doc ->
+                        val userA = doc.getString("userA")
+                        val userB = doc.getString("userB")
+                        if (userA != null && userB != null) Pair(userA, userB) else null
+                    }
+                    trySend(latestA + latestB)
                 }
-                trySend(latestA + latestB)
             }
 
         val subB = fs.collection(FRI)
@@ -116,10 +120,14 @@ object FirestoreManager {
                     close(err)
                     return@addSnapshotListener
                 }
-                latestB = snap!!.documents.map { doc ->
-                    Pair(doc.getString("userA")!!, doc.getString("userB")!!)
+                if (snap != null) {
+                    latestB = snap.documents.mapNotNull { doc ->
+                        val userA = doc.getString("userA")
+                        val userB = doc.getString("userB")
+                        if (userA != null && userB != null) Pair(userA, userB) else null
+                    }
+                    trySend(latestA + latestB)
                 }
-                trySend(latestA + latestB)
             }
 
         awaitClose {
@@ -127,6 +135,7 @@ object FirestoreManager {
             subB.remove()
         }
     }
+
     /**
      * Add the given userId to the likes array of a daily selection.
      */

@@ -12,8 +12,34 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.bejam.R
 import com.example.bejam.databinding.FragmentFriendsBinding
 import com.google.firebase.auth.FirebaseAuth
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import androidx.core.view.isVisible
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 
 class FriendsFragment : Fragment() {
+    // Receiver to handle logout events and clear friends/request lists
+    private val logoutReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            // Clear both adapters when user logs out
+            reqAdapter.submitList(emptyList())
+            friendAdapter.submitList(emptyList())
+
+            // Remove LiveData observers to avoid Firestore errors after logout
+            if (::vm.isInitialized) {
+                vm.incomingRequests.removeObservers(viewLifecycleOwner)
+                vm.friends.removeObservers(viewLifecycleOwner)
+            }
+
+            // Optionally hide the RecyclerViews and label while logged out
+            binding.incomingRequestsLabel.isVisible = false
+            binding.requestsRecyclerView.isVisible = false
+            binding.friendsRecyclerView.isVisible = false
+        }
+    }
+
     private var _binding: FragmentFriendsBinding? = null
     private val binding get() = _binding!!
 
@@ -33,16 +59,20 @@ class FriendsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Wait until user is signed in before enabling UI or initializing ViewModel
+        LocalBroadcastManager.getInstance(requireContext())
+            .registerReceiver(logoutReceiver, IntentFilter("com.example.bejam.USER_LOGGED_OUT"))
+
+        // Wait until user is signed in (and not anonymous) before enabling UI or initializing ViewModel
         val auth = FirebaseAuth.getInstance()
         val user = auth.currentUser
 
-        if (user == null) {
+        if (user == null || user.isAnonymous) {
             binding.root.postDelayed({
-                if (auth.currentUser == null) {
+                val newUser = auth.currentUser
+                if (newUser == null || newUser.isAnonymous) {
                     Toast.makeText(context, "Please wait, signing in...", Toast.LENGTH_SHORT).show()
                 } else {
-                    // Now signed in, re-navigate to this fragment or refresh
+                    // Now a non-anonymous user is signed in, refresh this fragment
                     findNavController().navigate(R.id.navigation_friends)
                 }
             }, 500) // 0.5s delay, tweak as needed
@@ -136,6 +166,12 @@ class FriendsFragment : Fragment() {
                 }, 6000)
             }
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        LocalBroadcastManager.getInstance(requireContext())
+            .unregisterReceiver(logoutReceiver)
     }
 
     override fun onDestroyView() {

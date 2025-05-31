@@ -1,6 +1,5 @@
 package com.example.bejam.ui.profile
 
-import android.content.Context
 import android.content.Context.MODE_PRIVATE
 import android.os.Bundle
 import androidx.fragment.app.Fragment
@@ -19,7 +18,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.widget.Toast // --- geändert ---
 import com.example.bejam.ui.profile.TopSongsAdapter
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.ktx.firestore
 import com.example.bejam.auth.SpotifyAuthManager // --- geändert ---
 import com.google.firebase.ktx.Firebase
@@ -35,6 +33,14 @@ import okhttp3.Response
 import java.io.IOException
 import org.json.JSONObject
 import java.util.Locale.US
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import androidx.core.view.isVisible
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import com.google.firebase.auth.FirebaseAuth
 
 
 class ProfileFragment : Fragment() {
@@ -58,15 +64,35 @@ class ProfileFragment : Fragment() {
         authManager = SpotifyAuthManager(requireContext()) // --- geändert ---
 
         setupLoginLogoutUI() // --- geändert --- (siehe neue Methode weiter unten)
-
         loadUserProfile()
         loadSelectedSong()
         loadTopSongs()
     }
 
+    // Receiver to handle logout events and refresh profile UI
+    private val logoutReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            // Update login/logout buttons
+            setupLoginLogoutUI()
+
+            // Clear user-profile fields:
+            b.textDisplayName.text = ""
+            b.textUsername.text = ""
+            b.profileImageLarge.setImageResource(R.drawable.placeholder_profile)
+
+            // Hide selected-song container (since user is logged out)
+            b.selectedSongContainer.visibility = View.GONE
+
+            // Clear top-songs RecyclerView:
+            b.topSongsRecyclerView.adapter = null
+
+            // Optionally hide or clear any other UI elements
+        }
+    }
+
     // --- NEU: Login/Logout UI Setup
     private fun setupLoginLogoutUI() {
-        val prefs = requireContext().getSharedPreferences("auth", Context.MODE_PRIVATE)
+        val prefs = requireContext().getSharedPreferences("auth", MODE_PRIVATE)
         val accessToken = prefs.getString("access_token", null)
         if (accessToken != null) {
             b.spotifyLoginButton.visibility = View.GONE
@@ -89,7 +115,7 @@ class ProfileFragment : Fragment() {
     }
 
     private fun loadUserProfile() {
-        val prefs = requireContext().getSharedPreferences("auth", Context.MODE_PRIVATE)
+        val prefs = requireContext().getSharedPreferences("auth", MODE_PRIVATE)
         val token = prefs.getString("access_token", "") ?: return
 
         // launch on Main-safe coroutine
@@ -110,7 +136,7 @@ class ProfileFragment : Fragment() {
                     .into(b.profileImageLarge)
 
                 requireContext()
-                    .getSharedPreferences("auth", Context.MODE_PRIVATE)
+                    .getSharedPreferences("auth", MODE_PRIVATE)
                     .edit()
                     .putString("spotify_user_id", profile.id)
                     .apply()
@@ -127,7 +153,7 @@ class ProfileFragment : Fragment() {
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
 
         // 2) build today’s key
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val today = SimpleDateFormat("yyyy-MM-dd", US)
             .format(Date())
 
         // 3) hit Firestore once
@@ -173,7 +199,7 @@ class ProfileFragment : Fragment() {
 
 
     private fun loadTopSongs() {
-        val prefs = requireContext().getSharedPreferences("auth", Context.MODE_PRIVATE)
+        val prefs = requireContext().getSharedPreferences("auth", MODE_PRIVATE)
         val token = prefs.getString("access_token", "") ?: return
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -194,6 +220,18 @@ class ProfileFragment : Fragment() {
         }
     }
 
+
+    override fun onResume() {
+        super.onResume()
+        LocalBroadcastManager.getInstance(requireContext())
+            .registerReceiver(logoutReceiver, IntentFilter("com.example.bejam.USER_LOGGED_OUT"))
+    }
+
+    override fun onPause() {
+        super.onPause()
+        LocalBroadcastManager.getInstance(requireContext())
+            .unregisterReceiver(logoutReceiver)
+    }
 
     override fun onDestroyView() {
         super.onDestroyView()

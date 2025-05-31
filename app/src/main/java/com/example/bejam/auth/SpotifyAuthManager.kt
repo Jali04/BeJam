@@ -1,5 +1,7 @@
 package com.example.bejam.auth
 
+import com.google.firebase.auth.FirebaseAuth
+
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -8,6 +10,7 @@ import android.util.Base64
 import android.util.Log
 import android.widget.Toast
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.example.bejam.AuthCallbackActivity
 import fi.iki.elonen.NanoHTTPD
 import okhttp3.*
@@ -56,12 +59,19 @@ class SpotifyAuthManager(private val context: Context) {
         customTabsIntent.launchUrl(context, authUri)
     }
     fun logout() {
+        // Sign out from FirebaseAuth as well
+        FirebaseAuth.getInstance().signOut()
+
         prefs.edit()
             .remove("access_token")
             .remove("refresh_token")
             .remove("expiration_time")
             .remove("code_verifier")
             .apply()
+
+        // Notify other components that user has logged out
+        val intent = Intent("com.example.bejam.USER_LOGGED_OUT")
+        LocalBroadcastManager.getInstance(context).sendBroadcast(intent)
 
         Toast.makeText(context, "Logged out of Spotify", Toast.LENGTH_SHORT).show()
     }
