@@ -48,6 +48,18 @@
         android:text="User comment"
         android:layout_marginTop="12dp"/>
 
+    <!-- NEU: Edit-Button (nur sichtbar für eigene Posts) -->
+    <ImageButton
+        android:id="@+id/editCommentButton"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginStart="6dp"
+        android:src="@drawable/ic_edit"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Kommentar bearbeiten"
+        android:visibility="gone"/>
+
     <Button
         android:id="@+id/likeOnSpotifyButton"
         android:layout_width="match_parent"

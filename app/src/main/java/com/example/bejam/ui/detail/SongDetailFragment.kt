@@ -8,8 +8,11 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import android.widget.ImageButton // <--- NEU
+import com.google.firebase.auth.FirebaseAuth // <--- NEU
 import com.bumptech.glide.Glide
 import com.example.bejam.data.model.DailySelection
 import com.example.bejam.databinding.FragmentSongDetailBinding
@@ -28,6 +31,7 @@ class SongDetailFragment : Fragment() {
     private val binding get() = _binding!!
 
     private var spotifySongId: String? = null
+    private var currentSelection: DailySelection? = null // <--- NEU
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -43,6 +47,7 @@ class SongDetailFragment : Fragment() {
                 if (doc.exists()) {
                     val sel = doc.toObject(DailySelection::class.java)
                     if (sel != null) {
+                        currentSelection = sel // <--- NEU
                         spotifySongId = sel.songId
                         binding.songTitle.text = sel.songName
                         binding.artistName.text = sel.artist
@@ -52,6 +57,14 @@ class SongDetailFragment : Fragment() {
                             .into(binding.albumCover)
                         // Play-Button nur sichtbar, wenn SongId vorhanden
                         binding.playButton.visibility = if (!sel.songId.isNullOrEmpty()) View.VISIBLE else View.GONE
+                        // --- NEU: Kommentar-Bearbeiten-Button einblenden, wenn Post von mir ---
+                        val myUid = FirebaseAuth.getInstance().currentUser?.uid
+                        if (sel.userId == myUid) {
+                            // Stift-Icon sichtbar machen
+                            binding.editCommentButton.visibility = View.VISIBLE
+                        } else {
+                            binding.editCommentButton.visibility = View.GONE
+                        }
                     }
                 }
             }
@@ -134,7 +147,43 @@ class SongDetailFragment : Fragment() {
                 .show()
         }
 
+        // --- NEU: Edit-Button für Kommentar ---
+        binding.editCommentButton.setOnClickListener {
+            currentSelection?.let { sel ->
+                showEditCommentDialog(sel)
+            }
+        }
+
         return binding.root
+    }
+
+    // --- NEU: Dialog zum Bearbeiten des Kommentars ---
+    private fun showEditCommentDialog(sel: DailySelection) {
+        val context = requireContext()
+        val input = EditText(context)
+        input.setText(sel.comment.orEmpty())
+        input.setSelection(input.text.length)
+        AlertDialog.Builder(context)
+            .setTitle("Kommentar bearbeiten")
+            .setView(input)
+            .setPositiveButton("Speichern") { _, _ ->
+                val newComment = input.text.toString()
+                if (newComment != sel.comment) {
+                    Firebase.firestore
+                        .collection("daily_selections")
+                        .document(sel.id)
+                        .update("comment", newComment)
+                        .addOnSuccessListener {
+                            binding.comment.text = newComment
+                            Toast.makeText(context, "Kommentar aktualisiert!", Toast.LENGTH_SHORT).show()
+                        }
+                        .addOnFailureListener {
+                            Toast.makeText(context, "Fehler beim Aktualisieren.", Toast.LENGTH_SHORT).show()
+                        }
+                }
+            }
+            .setNegativeButton("Abbrechen", null)
+            .show()
     }
 
     override fun onDestroyView() {
