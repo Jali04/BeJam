@@ -6,6 +6,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.example.bejam.R
 import com.example.bejam.data.model.DailySelection
 import com.example.bejam.databinding.ItemFeedBinding
 import com.example.bejam.ui.friends.UserProfile
@@ -36,6 +37,7 @@ class FeedAdapter(
             onLikeClicked: (DailySelection) -> Unit,
             onItemClick: (DailySelection) -> Unit
         ) {
+            // Songinfo and Postername
             val me = FirebaseAuth.getInstance().currentUser?.uid
             b.songTitle.text = sel.songName
             b.artistName.text = sel.artist
@@ -48,6 +50,22 @@ class FeedAdapter(
                 else                -> "Unknown User"
             }
             Glide.with(b.root).load(sel.imageUrl).into(b.albumCover)
+
+            // Poster pic
+            val avatarUrl = profile?.avatarUrl ?: profile?.spotifyId?.let { id ->
+                null
+            }
+            if (!avatarUrl.isNullOrEmpty()) {
+                Glide.with(b.root)
+                    .load(avatarUrl)
+                    .placeholder(R.drawable.placeholder_profile)
+                    .into(b.posterAvatar)
+            } else {
+                // Standard‐Platzhalter, falls kein Bild da ist
+                b.posterAvatar.setImageResource(R.drawable.placeholder_profile)
+            }
+
+            // Like count
             b.likeCount.text = sel.likes.size.toString()
             b.likeButton.isEnabled = sel.userId != me
             b.likeButton.isSelected = me != null && sel.likes.contains(me)

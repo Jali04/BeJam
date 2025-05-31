@@ -45,13 +45,13 @@
         android:id="@+id/overlayContainer"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:visibility="gone"
-        android:background="#88000000">
+        android:background="#88000000"
+        android:visibility="gone">
 
         <LinearLayout
-            android:orientation="vertical"
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="match_parent"
+            android:orientation="vertical">
 
             <!-- Top Spacer (10%) -->
             <View
@@ -64,9 +64,9 @@
                 android:id="@+id/postPromptWindow"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_weight="0.8"
                 android:layout_marginStart="10dp"
                 android:layout_marginEnd="10dp"
+                android:layout_weight="0.8"
                 android:background="@drawable/rounded_window_bg_grey"
                 android:orientation="vertical"
                 android:padding="16dp">
@@ -76,20 +76,20 @@
                     android:id="@+id/promptText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:paddingBottom="8dp"
                     android:text="CHOOSE YOUR DAILY SONG!"
                     android:textColor="#FFFFFF"
-                    android:textSize="16sp"
-                    android:gravity="center"
-                    android:paddingBottom="8dp" />
+                    android:textSize="16sp" />
 
                 <!-- Search EditText -->
                 <EditText
                     android:id="@+id/searchEditText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:background="@drawable/search_edittext_bg"
                     android:hint="Search for a track"
                     android:inputType="text"
-                    android:background="@drawable/search_edittext_bg"
                     android:padding="12dp"
                     android:textColor="#FFFFFF"
                     android:textColorHint="#9986a7"
@@ -101,18 +101,18 @@
                     android:layout_width="match_parent"
                     android:layout_height="0dp"
                     android:layout_weight="1"
-                    android:fillViewport="true"
-                    android:clipToPadding="false"
                     android:background="@drawable/rounded_window_bg_grey"
+                    android:clipToPadding="false"
+                    android:fillViewport="true"
                     android:padding="8dp">
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/tracksRecyclerView"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:clipToPadding="false"
                         android:paddingTop="8dp"
-                        android:paddingBottom="8dp"
-                        android:clipToPadding="false"/>
+                        android:paddingBottom="8dp" />
                 </androidx.core.widget.NestedScrollView>
             </LinearLayout>
 
@@ -129,28 +129,28 @@
         android:id="@+id/loginPromptContainer"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:visibility="gone"
-        android:background="#88000000">
+        android:background="#88000000"
+        android:visibility="gone">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:gravity="center">
+            android:gravity="center"
+            android:orientation="vertical">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:padding="8dp"
                 android:text="Please log in to continue"
                 android:textColor="#FFFFFF"
-                android:textSize="18sp"
-                android:padding="8dp"/>
+                android:textSize="18sp" />
 
             <Button
                 android:id="@+id/loginButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="LOGIN"/>
+                android:text="LOGIN" />
         </LinearLayout>
     </FrameLayout>
 </FrameLayout>
