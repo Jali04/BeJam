@@ -15,24 +15,32 @@ import com.example.bejam.databinding.ItemFriendBinding
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
+/**
+ * Adapter für die RecyclerView, die alle Freunde im UI anzeigt.
+ * ListAdapter: vereinfacht diff-basierte Updates für RecyclerViews.
+ */
+
 class FriendAdapter : ListAdapter<Friend, FriendAdapter.VH>(Diff()) {
 
+    // Erstellt einen neuen ViewHolder für ein Freund-Item
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
         VH(ItemFriendBinding.inflate(LayoutInflater.from(parent.context), parent, false))
 
+    // Bindet einen Freund an einen ViewHolder
     override fun onBindViewHolder(holder: VH, position: Int) =
         holder.bind(getItem(position))
 
     inner class VH(private val b: ItemFriendBinding): RecyclerView.ViewHolder(b.root) {
         fun bind(f: Friend) {
-            // The Friend model’s primary key is the friend's UID
+
+            // Die Friend-ID ist eigentlich die UID des Freundes
             val friendUid = f.id
 
-            // Default to showing the locally cached username or UID until we load the real profile
+            // Standardanzeige (Username aus lokalem Modell oder UID, falls leer)
             b.username.text = f.username.ifBlank { friendUid }
             b.avatar.setImageResource(R.drawable.placeholder_profile)
 
-            // Fetch displayName and photoUrl from user_profiles
+            // Holt den aktuellen Anzeigenamen und Profilbild aus Firestore (user_profiles)
             FirebaseFirestore.getInstance()
                 .collection("user_profiles")
                 .document(friendUid)
@@ -41,6 +49,7 @@ class FriendAdapter : ListAdapter<Friend, FriendAdapter.VH>(Diff()) {
                     val displayName = doc.getString("displayName") ?: friendUid
                     b.username.text = displayName
 
+                    // Profilbild-URL holen (avatarUrl oder spotifyPhotoUrl)
                     val photoUrl = doc.getString("avatarUrl")
                         ?: doc.getString("spotifyPhotoUrl")
                     if (!photoUrl.isNullOrEmpty()) {
@@ -57,7 +66,9 @@ class FriendAdapter : ListAdapter<Friend, FriendAdapter.VH>(Diff()) {
     }
 
     class Diff : DiffUtil.ItemCallback<Friend>() {
+        // Prüft, ob die Items dieselbe ID haben (Unique Key)
         override fun areItemsTheSame(a: Friend, b: Friend) = a.id == b.id
+        // Prüft, ob die Inhalte identisch sind (vollständiger Vergleich)
         override fun areContentsTheSame(a: Friend, b: Friend) = a == b
     }
 }

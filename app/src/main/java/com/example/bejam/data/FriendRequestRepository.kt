@@ -9,26 +9,44 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
+/**
+ * Repository/ViewModel für Freundschaftsanfragen.
+ * Bindeglied zwischen Firestore (Cloud) und UI/ViewModel-Schicht.
+ */
+
 class FriendRequestRepository(app: Application) : AndroidViewModel(app) {
+
+    // Zugriff auf gespeicherte Auth-Infos
     private val prefs = app.getSharedPreferences("auth", Context.MODE_PRIVATE)
+
+    // Eigene Spotify/Firebase-UID
     private val myUid get() = prefs.getString("spotify_user_id","")!!
 
+    /**
+     * LiveData der eingehenden Freundschaftsanfragen (über FirestoreManager)
+     */
     val incomingRequests = FirestoreManager
         .observeIncomingRequests(myUid)
         .asLiveData()
 
+    /**
+     * LiveData aller bestätigten Freunde (aus Firestore)
+     * Wird in Friend-Objekte umgewandelt
+     */
     val friends = FirestoreManager
         .observeFriends(myUid)
         .map { pairs ->
-            // For each pair (a,b), pick the “other” ID, fetch SpotifyUserProfile, map to Friend
+            // Für jedes Paar (a,b) den „anderen“ holen, Spotify-Profil abrufen und in Friend mappen
             pairs.map { (a,b) ->
                 val other = if (a==myUid) b else a
                 // TODO: call SpotifyApiService.getUserProfile(bearer, other)
-                // and map into your local Friend data class
             }
         }
         .asLiveData()
 
+    /**
+     * Schickt eine Freundschaftsanfrage an einen anderen User
+     */
     fun sendRequest(toUid: String) {
         viewModelScope.launch {
             try {
@@ -37,11 +55,15 @@ class FriendRequestRepository(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Antwortet auf eine Freundschaftsanfrage (accept = true/false).
+     * Bei Annahme wird der User auch bei Spotify gefolgt!
+     */
     fun respond(req: FirestoreManager.Request, accept: Boolean) {
         viewModelScope.launch {
             FirestoreManager.respondToRequest(req, accept, myUid)
             if (accept) {
-                // follow on Spotify so that my feed will get their picks
+                // Bei Annahme direkt auch auf Spotify folgen!
                 val token = prefs.getString("access_token","")!!
                 RetrofitClient.spotifyApi.followUsers("Bearer $token", ids = req.fromUid)
             }

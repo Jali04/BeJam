@@ -19,21 +19,25 @@ import android.content.IntentFilter
 import androidx.core.view.isVisible
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 
+/**
+ * Fragment, das die Freundesliste UND eingehende Freundschaftsanfragen anzeigt.
+ */
 class FriendsFragment : Fragment() {
-    // Receiver to handle logout events and clear friends/request lists
+
+    // BroadcastReceiver für Logout-Events, um die Listen und UI zu leeren
     private val logoutReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            // Clear both adapters when user logs out
+            // Beide Adapter leeren
             reqAdapter.submitList(emptyList())
             friendAdapter.submitList(emptyList())
 
-            // Remove LiveData observers to avoid Firestore errors after logout
+            // Beobachter entfernen
             if (::vm.isInitialized) {
                 vm.incomingRequests.removeObservers(viewLifecycleOwner)
                 vm.friends.removeObservers(viewLifecycleOwner)
             }
 
-            // Optionally hide the RecyclerViews and label while logged out
+            // UI anpassen (Listen und Labels ausblenden)
             binding.incomingRequestsLabel.isVisible = false
             binding.requestsRecyclerView.isVisible = false
             binding.friendsRecyclerView.isVisible = false
@@ -59,32 +63,35 @@ class FriendsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // Registriert Receiver für Logout-Events (damit UI sofort reagiert)
         LocalBroadcastManager.getInstance(requireContext())
             .registerReceiver(logoutReceiver, IntentFilter("com.example.bejam.USER_LOGGED_OUT"))
 
-        // Wait until user is signed in (and not anonymous) before enabling UI or initializing ViewModel
+        // Warte auf User-Login (nicht-anonymer User), bevor UI aktiviert wird
         val auth = FirebaseAuth.getInstance()
         val user = auth.currentUser
 
         if (user == null || user.isAnonymous) {
+            // Verzögert kurz, falls Auth noch läuft; lädt Fragment ggf. neu
             binding.root.postDelayed({
                 val newUser = auth.currentUser
                 if (newUser == null || newUser.isAnonymous) {
                     Toast.makeText(context, "Please wait, signing in...", Toast.LENGTH_SHORT).show()
                 } else {
-                    // Now a non-anonymous user is signed in, refresh this fragment
+                    // Sobald ein echter User eingeloggt ist, lade Fragment neu
                     findNavController().navigate(R.id.navigation_friends)
                 }
             }, 500) // 0.5s delay, tweak as needed
             return
         }
 
+        // ViewModel initialisieren
         vm = ViewModelProvider(
             this,
             ViewModelProvider.AndroidViewModelFactory.getInstance(requireActivity().application)
         ).get(FriendsViewModel::class.java)
 
-        // 1) “Send request” button
+        // 1) "Freund hinzufügen"-Button
         binding.addFriendButton.setOnClickListener {
             val input = binding.addFriendEditText.text.toString().trim()
             if (input.isNotEmpty()) {
@@ -93,7 +100,7 @@ class FriendsFragment : Fragment() {
             }
         }
 
-        // 2) Incoming-requests RecyclerView
+        // 2) Incoming-Requests RecyclerView (eingehende Freundschaftsanfragen)
         reqAdapter = RequestAdapter { req, accept ->
             vm.respond(req, accept)
         }
@@ -114,14 +121,14 @@ class FriendsFragment : Fragment() {
             }
         }
 
-        // 3) “Accepted friends” RecyclerView
+        // 3) Freunde-RecyclerView (akzeptierte Freunde)
         friendAdapter = FriendAdapter()
         binding.friendsRecyclerView.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = friendAdapter
         }
         vm.friends.observe(viewLifecycleOwner) { pairs ->
-            // grab your own UID directly from FirebaseAuth
+            // Holt die eigene UID
             val me = FirebaseAuth.getInstance().currentUser!!.uid
             friendAdapter.submitList(pairs.map { (a, b) ->
                 val otherUid = if (a == me) b else a
@@ -134,7 +141,7 @@ class FriendsFragment : Fragment() {
             })
         }
 
-        // 4) Toast on sendRequest success/failure
+        // 4) Feedback für Anfrage gesendet / Fehler
         vm.requestSent.observe(viewLifecycleOwner) { success ->
             when (success) {
                 true -> {
@@ -148,19 +155,19 @@ class FriendsFragment : Fragment() {
                     vm.clearRequestSent()
                 }
                 null -> {
-                    // no-op: this just resets the event so it won’t fire again
+                    // no-op
                 }
             }
         }
 
-        // 5) Any generic error
+        // 5) Generische Fehler
         vm.error.observe(viewLifecycleOwner) { msg ->
             binding.errorText.text = msg
             binding.errorText.visibility =
                 if (msg != null) View.VISIBLE else View.GONE
 
             if (msg != null) {
-                // nach 3 Sekunden wieder ausblenden
+                // Fehler nach 3 Sekunden wieder ausblenden
                 Handler(Looper.getMainLooper()).postDelayed({
                     vm.clearError()
                 }, 6000)

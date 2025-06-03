@@ -10,12 +10,25 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
+/**
+ * Hilfsklasse für alle direkten Operationen mit Firestore (Datenbank in der Cloud).
+ * Stellt Methoden bereit für Friend-Requests, Freundschaften, Likes und DailySelections.
+ */
+
 object FirestoreManager {
+
+    // Firestore-Instanz
     private val fs = Firebase.firestore
+
+    // Sammlungsnamen als Konstanten
     private const val REQ = "friend_requests"
     private const val FRI = "friends"
     private const val SEL = "daily_selections"
 
+    /**
+     * Datenklasse für eine Freundschaftsanfrage.
+     * Enthält Absender, Empfänger, Status und Zeitstempel.
+     */
     data class Request(
         val id: String = "",
         val fromUid: String = "",
@@ -24,13 +37,13 @@ object FirestoreManager {
         val timestamp: Long = System.currentTimeMillis()
     )
 
-    /** Send a PENDING request from currentUser → toUid */
+    /** Erstellt/verschickt eine Freundschaftsanfrage von fromUid → toUid */
     fun sendRequest(fromUid: String, toUid: String): Task<Void> {
-        // Deterministic request ID: prevent duplicate requests
+        // Eindeutige ID für die Anfrage: verhindert doppelte Anfragen
         val requestId = "${fromUid}_$toUid"
         val docRef = fs.collection(REQ).document(requestId)
 
-        // now build your Request including the ID and a timestamp
+        // Anfrage-Dokument bauen
         val req = Request(
             id        = docRef.id,
             fromUid   = fromUid,
@@ -39,11 +52,11 @@ object FirestoreManager {
             timestamp = System.currentTimeMillis()
         )
 
-        // write it
+        // Anfrage speichern (ersetzt vorhandene Anfrage gleichen Typs)
         return docRef.set(req)
     }
 
-    /** Listen to incoming PENDING requests for you */
+    /** Liefert alle eingehenden, noch nicht beantworteten Freundschaftsanfragen als Flow (Live-Stream) */
     fun observeIncomingRequests(myUid: String): Flow<List<Request>> = callbackFlow {
         val sub = fs.collection(REQ)
             .whereEqualTo("toUid", myUid)
@@ -64,24 +77,24 @@ object FirestoreManager {
         awaitClose { sub.remove() }
     }
 
-    /** Respond to a request (ACCEPT or REJECT).  If ACCEPT, also write to `friends`. */
+    /** Beantwortet eine Anfrage (accept/reject), schreibt im Erfolgsfall auch die Freundschaft */
     suspend fun respondToRequest(
         req: Request,
         accept: Boolean,
         myUid: String
     ) {
         if (!accept) {
-            // Declined: remove the pending request so it can be resent
+            // Anfrage abgelehnt: Anfrage löschen (kann erneut geschickt werden)
             fs.collection(REQ).document(req.id)
                 .delete().await()
             return
         }
 
-        // Accepted: update the request status
+        // Anfrage angenommen: Status updaten
         fs.collection(REQ).document(req.id)
             .update("status", "ACCEPTED").await()
 
-        // Create the mutual friendship entry
+        // Freundschaft anlegen (Eintrag in "friends"-Collection, für beide User)
         val sortedIds = listOf(req.fromUid, myUid).sorted()
         val friendshipId = "${sortedIds[0]}_${sortedIds[1]}"
         fs.collection(FRI).document(friendshipId).set(mapOf(
@@ -91,11 +104,12 @@ object FirestoreManager {
         )).await()
     }
 
-    /** Stream all friendships where userA == me OR userB == me */
+    /** Streamt alle Freundschaften, bei denen der aktuelle User beteiligt ist */
     fun observeFriends(myUid: String): Flow<List<Pair<String, String>>> = callbackFlow {
         var latestA = emptyList<Pair<String, String>>()
         var latestB = emptyList<Pair<String, String>>()
 
+        // Freundschaften, bei denen der User „userA“ ist
         val subA = fs.collection(FRI)
             .whereEqualTo("userA", myUid)
             .addSnapshotListener { snap, err ->
@@ -113,6 +127,7 @@ object FirestoreManager {
                 }
             }
 
+        // Freundschaften, bei denen der User „userB“ ist
         val subB = fs.collection(FRI)
             .whereEqualTo("userB", myUid)
             .addSnapshotListener { snap, err ->
@@ -137,7 +152,7 @@ object FirestoreManager {
     }
 
     /**
-     * Add the given userId to the likes array of a daily selection.
+     * Fügt die userId zur Like-Liste eines DailySelection-Posts hinzu.
      */
     fun likeSelection(selectionId: String, userId: String): Task<Void> {
         return fs.collection(SEL)
@@ -146,7 +161,7 @@ object FirestoreManager {
     }
 
     /**
-     * Remove the given userId from the likes array of a daily selection.
+     * Entfernt die userId aus der Like-Liste eines DailySelection-Posts.
      */
     fun unlikeSelection(selectionId: String, userId: String): Task<Void> {
         return fs.collection(SEL)
@@ -155,12 +170,11 @@ object FirestoreManager {
     }
 
     /**
-     * Deletes all daily selections for the given user that were created today.
-     * This version fetches all selections for the user and filters by timestamp in Kotlin,
-     * avoiding the need for a composite index in Firestore.
+     * Löscht alle DailySelections eines Users, die heute erstellt wurden.
+     * Vermeidet den Bedarf für einen Composite Index in Firestore.
      */
     suspend fun clearTodaySelections(uid: String) {
-        // Calculate the start and end of the current day in milliseconds
+        // Tagesanfang/-ende berechnen (Millisekunden)
         val calendar = Calendar.getInstance().apply {
             timeInMillis = System.currentTimeMillis()
             set(Calendar.HOUR_OF_DAY, 0)
@@ -172,7 +186,7 @@ object FirestoreManager {
         calendar.add(Calendar.DAY_OF_MONTH, 1)
         val endOfDay = calendar.timeInMillis
 
-        // Fetch all selections for this user, then filter locally by today's timestamp range
+        // Alle Posts des Users holen, die im Zeitraum heute liegen
         val allSnapshot = fs.collection(SEL)
             .whereEqualTo("userId", uid)
             .get()
@@ -182,7 +196,7 @@ object FirestoreManager {
             ts in startOfDay until endOfDay
         }
 
-        // Batch delete all matching documents
+        // Alle passenden Posts im Batch löschen
         val batch = fs.batch()
         for (doc in snapshotDocs) {
             batch.delete(doc.reference)

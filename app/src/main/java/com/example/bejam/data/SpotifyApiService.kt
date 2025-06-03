@@ -12,6 +12,11 @@ import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
+/**
+ * Interface, das alle Spotify-API-Endpunkte beschreibt, die von der App genutzt werden.
+ * Retrofit baut daraus eine Implementierung.
+ */
+
 interface SpotifyApiService {
     @GET("v1/search")
     suspend fun searchTracks(
@@ -22,7 +27,7 @@ interface SpotifyApiService {
         @Query("market") market: String = "from_token"
     ): TrackSearchResponse
 
-    /** Follow one or more Spotify users */
+    /** Einen oder mehrere Spotify-User folgen (wird beim „Freunde akzeptieren“ genutzt) */
     @PUT("v1/me/following")
     suspend fun followUsers(
         @Header("Authorization") bearer: String,
@@ -38,24 +43,27 @@ interface SpotifyApiService {
         @Query("ids") ids: String
     )
 
-    /** Get a Spotify user’s profile (to fetch display name + avatar) */
+    /** Holt das Spotify-User-Profil (z. B. für Freunde/Follow-Infos) */
     @GET("v1/users/{user_id}")
     suspend fun getUserProfile(
         @Header("Authorization") bearer: String,
         @Path("user_id") userId: String
     ): SpotifyUserProfile
 
+    /** Holt das Profil des aktuell eingeloggten Users („/v1/me“) */
     @GET("v1/me")
     suspend fun getCurrentUserProfile(
         @Header("Authorization") bearer: String
     ): SpotifyUserProfile
 
+    /** Holt die Top-Tracks (meistgehörten Songs) des aktuellen Users */
     @GET("v1/me/top/tracks")
     suspend fun getUserTopTracks(
         @Header("Authorization") bearer: String,
         @Query("limit") limit: Int = 10
     ): TopTracksResponse
 
+    /** Liked einen Track auf Spotify (fügt ihn zu den eigenen „Gefällt mir“-Songs hinzu) */
     @PUT("me/tracks")
     suspend fun likeTrack(
         @Header("Authorization") authHeader: String,

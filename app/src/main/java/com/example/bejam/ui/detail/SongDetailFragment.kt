@@ -31,7 +31,7 @@ class SongDetailFragment : Fragment() {
     private val binding get() = _binding!!
 
     private var spotifySongId: String? = null
-    private var currentSelection: DailySelection? = null // <--- NEU
+    private var currentSelection: DailySelection? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -41,13 +41,13 @@ class SongDetailFragment : Fragment() {
         // Argument holen
         val id = arguments?.getString("dailySelectionId") ?: return binding.root
 
-        // Firestore holen
+        // 2) Song-Post aus Firestore laden
         Firebase.firestore.collection("daily_selections").document(id)
             .get().addOnSuccessListener { doc ->
                 if (doc.exists()) {
                     val sel = doc.toObject(DailySelection::class.java)
                     if (sel != null) {
-                        currentSelection = sel // <--- NEU
+                        currentSelection = sel //
                         spotifySongId = sel.songId
                         binding.songTitle.text = sel.songName
                         binding.artistName.text = sel.artist
@@ -57,7 +57,7 @@ class SongDetailFragment : Fragment() {
                             .into(binding.albumCover)
                         // Play-Button nur sichtbar, wenn SongId vorhanden
                         binding.playButton.visibility = if (!sel.songId.isNullOrEmpty()) View.VISIBLE else View.GONE
-                        // --- NEU: Kommentar-Bearbeiten-Button einblenden, wenn Post von mir ---
+                        // Kommentar-Bearbeiten-Button einblenden, wenn Post von mir ---
                         val myUid = FirebaseAuth.getInstance().currentUser?.uid
                         if (sel.userId == myUid) {
                             // Stift-Icon sichtbar machen
@@ -147,7 +147,7 @@ class SongDetailFragment : Fragment() {
                 .show()
         }
 
-        // --- NEU: Edit-Button für Kommentar ---
+        // 5) Kommentar-Bearbeiten-Button (nur sichtbar, wenn Post von mir ist)
         binding.editCommentButton.setOnClickListener {
             currentSelection?.let { sel ->
                 showEditCommentDialog(sel)
@@ -157,7 +157,7 @@ class SongDetailFragment : Fragment() {
         return binding.root
     }
 
-    // --- NEU: Dialog zum Bearbeiten des Kommentars ---
+    // Dialog zum Bearbeiten des Kommentars
     private fun showEditCommentDialog(sel: DailySelection) {
         val context = requireContext()
         val input = EditText(context)

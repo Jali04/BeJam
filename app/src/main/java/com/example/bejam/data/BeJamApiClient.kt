@@ -6,9 +6,15 @@ import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 
-object BeJamApiClient {
-    private const val BASE_URL = "https://api.spotify.com/"
+/**
+ * Singleton-Objekt, das eine Retrofit-Instanz bereitstellt,
+ * um mit der (Spotify-)API zu kommunizieren.
+ */
 
+object BeJamApiClient {
+    private const val BASE_URL = "https://api.spotify.com/" // Basis-URL für alle API-Requests
+
+    // Moshi ist die Library, um JSON <-> Kotlin-Objekte zu konvertieren
     private val moshi = Moshi.Builder()
         .add(KotlinJsonAdapterFactory())
         .build()

@@ -7,6 +7,10 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 
+/**
+ * Singleton-Objekt, das die Retrofit-Instanz für die Spotify-API bereitstellt.
+ */
+
 object RetrofitClient {
     private const val BASE_URL = "https://api.spotify.com/"
 
@@ -22,10 +26,14 @@ object RetrofitClient {
         .addInterceptor(logging)
         .build()
 
+    /**
+     * SpotifyApiService ist die Kotlin-Interface-Beschreibung aller Spotify-Endpunkte.
+     * Retrofit erstellt daraus automatisch eine Implementierung.
+     */
     val spotifyApi: SpotifyApiService by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
-            .client(client)                                   // add our logging client
+            .client(client)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
             .create(SpotifyApiService::class.java)
