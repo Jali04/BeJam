@@ -42,13 +42,17 @@ import androidx.core.view.isVisible
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.firebase.auth.FirebaseAuth
 
-
+/**
+ * Fragment für die Profilseite des Nutzers. Zeigt Spotify-User-Informationen,
+ * den heutigen ausgewählten Song und die Top-Tracks.
+ * Reagiert außerdem auf Login/Logout-Events über einen BroadcastReceiver.
+ */
 class ProfileFragment : Fragment() {
 
     private var _binding: FragmentProfileBinding? = null
     private val b get() = _binding!!
 
-    // --- geändert ---
+    // Auth-Manager für Spotify-Login/Logout
     private lateinit var authManager: SpotifyAuthManager
 
     override fun onCreateView(
@@ -61,64 +65,73 @@ class ProfileFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        authManager = SpotifyAuthManager(requireContext()) // --- geändert ---
+        authManager = SpotifyAuthManager(requireContext())
 
-        setupLoginLogoutUI() // --- geändert --- (siehe neue Methode weiter unten)
+        setupLoginLogoutUI()
         loadUserProfile()
         loadSelectedSong()
         loadTopSongs()
     }
 
-    // Receiver to handle logout events and refresh profile UI
+    /**
+     * BroadcastReceiver, der Logout-Events abfängt und die UI entsprechend zurücksetzt.
+     */
     private val logoutReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             // Update login/logout buttons
             setupLoginLogoutUI()
 
-            // Clear user-profile fields:
+            // Clear user-profile
             b.textDisplayName.text = ""
             b.textUsername.text = ""
             b.profileImageLarge.setImageResource(R.drawable.placeholder_profile)
 
-            // Hide selected-song container (since user is logged out)
+            // Ausgewählten Song verbergen
             b.selectedSongContainer.visibility = View.GONE
 
-            // Clear top-songs RecyclerView:
+            // Top-Songs-Liste leeren
             b.topSongsRecyclerView.adapter = null
-
-            // Optionally hide or clear any other UI elements
         }
     }
 
-    // --- NEU: Login/Logout UI Setup
+    /**
+     * Schaltet die Sichtbarkeit von Login- und Logout-Buttons abhängig vom Spotify-Token.
+     * Startet Login/Logout über den SpotifyAuthManager.
+     */
     private fun setupLoginLogoutUI() {
         val prefs = requireContext().getSharedPreferences("auth", MODE_PRIVATE)
         val accessToken = prefs.getString("access_token", null)
         if (accessToken != null) {
+            // Token vorhanden → Logout-Button anzeigen, Login-Button verbergen
             b.spotifyLoginButton.visibility = View.GONE
             b.spotifyLogoutButton.visibility = View.VISIBLE
         } else {
+            // Kein Token → Login-Button anzeigen, Logout-Button verbergen
             b.spotifyLoginButton.visibility = View.VISIBLE
             b.spotifyLogoutButton.visibility = View.GONE
         }
 
+        // Login-Button startet Spotify-Login
         b.spotifyLoginButton.setOnClickListener {
             authManager.startLogin()
         }
+        // Logout-Button führt Logout durch und aktualisiert UI
         b.spotifyLogoutButton.setOnClickListener {
             authManager.logout()
             b.spotifyLoginButton.visibility = View.VISIBLE
             b.spotifyLogoutButton.visibility = View.GONE
-            // Optional: Profilbild zurücksetzen, falls du willst:
-            // b.profileImageLarge.setImageResource(R.drawable.placeholder_profile)
         }
     }
 
+    /**
+     * Lädt das aktuelle Spotify-Nutzerprofil (Name, Username, Bild) via Retrofit-Aufruf.
+     * Speichert außerdem die Spotify-User-ID in SharedPreferences.
+     */
     private fun loadUserProfile() {
         val prefs = requireContext().getSharedPreferences("auth", MODE_PRIVATE)
         val token = prefs.getString("access_token", "") ?: return
 
-        // launch on Main-safe coroutine
+        // In Coroutine ausführen, um Netzwerkaufruf im IO-Thread zu machen
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val profile = withContext(Dispatchers.IO) {
@@ -126,7 +139,7 @@ class ProfileFragment : Fragment() {
                         .getCurrentUserProfile("Bearer $token")
                 }
 
-                // bind to UI
+                // UI-Elemente mit erhaltenen Daten befüllen
                 b.textDisplayName.text = profile.display_name.orEmpty()
                 b.textUsername.text = "@${profile.id}"
                 val imageUrl = profile.images?.firstOrNull()?.url
@@ -135,6 +148,7 @@ class ProfileFragment : Fragment() {
                     .placeholder(R.drawable.placeholder_profile)
                     .into(b.profileImageLarge)
 
+                // Spotify-User-ID in SharedPreferences speichern
                 requireContext()
                     .getSharedPreferences("auth", MODE_PRIVATE)
                     .edit()
@@ -143,36 +157,42 @@ class ProfileFragment : Fragment() {
 
             } catch (e: Exception) {
                 // TODO: handle error (e.g. show Toast or log out)
+                // we forgor
             }
         }
     }
 
 
+    /**
+     * Holt aus Firestore die Today's DailySelection für den aktuellen Nutzer
+     * (identifiziert durch „userId_todayDate“) und bindet sie in die UI ein.
+     */
     private fun loadSelectedSong() {
-        // 1) get FirebaseAuth uid
+        // Firebase-User-ID holen
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
 
-        // 2) build today’s key
+        // Schlüsse l für heute im Format „yyyy-MM-dd”
         val today = SimpleDateFormat("yyyy-MM-dd", US)
             .format(Date())
 
-        // 3) hit Firestore once
+        // Asynchron Firestore abfragen
         viewLifecycleOwner.lifecycleScope.launch {
             val db = Firebase.firestore
             try {
+                // Sammlung „daily_selections“ nach allen Einträgen filtern, bei denen userId == uid
                 val snap = withContext(Dispatchers.IO) {
                     db.collection("daily_selections")
                         .whereEqualTo("userId", uid)
                         .get()
                         .await()
                 }
-                // 4) filter for today’s doc
+                // Dokumente in DailySelection-Objekte umwandeln und nach ID filtern (endet auf heute)
                 val sel = snap.documents
                     .mapNotNull { it.toObject(DailySelection::class.java) }
                     .find { it.id.endsWith(today) }
 
                 if (sel != null) {
-                    // 5) bind into your profile UI
+                    // UI aktualisieren: Container anzeigen, Daten eintragen
                     b.selectedSongContainer.visibility = View.VISIBLE
                     b.textSelectedSong.text    = sel.songName
                     b.textSelectedArtist.text = sel.artist
@@ -186,25 +206,26 @@ class ProfileFragment : Fragment() {
                         .load(sel.imageUrl)
                         .into(b.imageSelectedAlbum)
                 } else {
-                    // no selection today
+                    // Kein Eintrag für heute → Container verbergen
                     b.selectedSongContainer.visibility = View.GONE
                 }
             } catch (e: Exception) {
-                // optionally log or show error
+                // Fehler → Container verbergen
                 b.selectedSongContainer.visibility = View.GONE
             }
         }
     }
 
-
-
+    /**
+     * Ruft die Top-Tracks des Nutzers von Spotify ab und zeigt sie in einer horizontalen RecyclerView.
+     */
     private fun loadTopSongs() {
         val prefs = requireContext().getSharedPreferences("auth", MODE_PRIVATE)
         val token = prefs.getString("access_token", "") ?: return
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                // fetch top tracks
+                // Netzwerk-Aufruf im IO-Thread
                 val resp = withContext(Dispatchers.IO) {
                     RetrofitClient.spotifyApi.getUserTopTracks("Bearer $token", limit = 10)
                 }
@@ -216,6 +237,7 @@ class ProfileFragment : Fragment() {
                 }
             } catch (e: Exception) {
                 // TODO: error handling
+                // rip we forgor this too
             }
         }
     }
@@ -223,12 +245,14 @@ class ProfileFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        // BroadcastReceiver registrieren, um auf Logout-Events zu reagieren
         LocalBroadcastManager.getInstance(requireContext())
             .registerReceiver(logoutReceiver, IntentFilter("com.example.bejam.USER_LOGGED_OUT"))
     }
 
     override fun onPause() {
         super.onPause()
+        // Receiver wieder abmelden
         LocalBroadcastManager.getInstance(requireContext())
             .unregisterReceiver(logoutReceiver)
     }

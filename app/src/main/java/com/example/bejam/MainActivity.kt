@@ -21,6 +21,13 @@ import com.example.bejam.auth.SpotifyAuthManager.Companion.refreshAccessToken
 import com.example.bejam.databinding.ActivityMainBinding
 import com.google.firebase.auth.FirebaseAuth
 
+/**
+ * Die Haupt-Activity, die das BottomNavigationView-Layout (Home, Friends, Profile) einrichtet.
+ * Außerdem prüft sie beim Start, ob ein Firebase-User angemeldet ist, und falls nicht,
+ * leitet direkt zur Profile-Route (Login) weiter. Sie kümmert sich außerdem um das
+ * automatische Refreshen des Spotify-Zugriffstokens und ggf. um die
+ * POST_NOTIFICATIONS-Permission unter Android 13+.
+ */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
@@ -28,16 +35,19 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Firebase-Anonym-SignIn prüfen
         val auth = FirebaseAuth.getInstance()
+        // Binding initialisieren und Layout setzen
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // If no user is logged in, navigate to login screen
+        // Wenn kein Firebase-User angemeldet, direkt zur Profile-Route navigieren (Login)
         if (auth.currentUser == null) {
             val navController = findNavController(R.id.nav_host_fragment_activity_main)
             navController.navigate(R.id.navigation_profile)
         }
 
+        // BottomNavigationView & NavController konfigurieren
         val navView: BottomNavigationView = binding.navView
         val navController = findNavController(R.id.nav_host_fragment_activity_main)
         // Passing each menu ID as a set of Ids because each
@@ -48,26 +58,25 @@ class MainActivity : AppCompatActivity() {
             )
         )
 
+        // Spotify Access-Token Ablauf prüfen
         val prefs = getSharedPreferences("auth", Context.MODE_PRIVATE)
         val expirationTime = prefs.getLong("expiration_time", 0L)
         val currentTime = System.currentTimeMillis()
 
         if (expirationTime == 0L || currentTime >= expirationTime) {
-            // Token is missing or expired — attempt refresh
+            // → Token fehlt oder abgelaufen → Refresh anstoßen
             refreshAccessToken(this) { success, errorMessage ->
                 if (success) {
-                    // Token refreshed, update UI or proceed as logged in
                     Log.d("MAIN", "Token refreshed successfully.")
                 } else {
-                    // Refresh failed: possibly prompt user to log in again.
                     Log.d("MAIN", "Token refresh failed: $errorMessage")
                 }
             }
         } else {
-            // Token is still valid; no need to refresh.
             Log.d("MAIN", "Access token is still valid.")
         }
 
+        // Unter Android 13+ Notifications-Permission anfragen, wenn noch nicht erteilt
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(this, POST_NOTIFICATIONS)
             != PackageManager.PERMISSION_GRANTED) {
@@ -78,10 +87,14 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
+        // ActionBar und BottomNav mit NavController verknüpfen
         setupActionBarWithNavController(navController, appBarConfiguration)
         navView.setupWithNavController(navController)
     }
 
+    /**
+     * Falls die Up-Navigation gedrückt wurde, verarbeiten wir sie hier.
+     */
     override fun onSupportNavigateUp(): Boolean {
         val navController = findNavController(R.id.nav_host_fragment_activity_main)
         return navController.navigateUp() || super.onSupportNavigateUp()

@@ -44,6 +44,13 @@ import java.io.IOException
 import com.google.firebase.auth.FirebaseAuth
 import androidx.core.view.isVisible
 
+/**
+ * HomeFragment zeigt je nach Status:
+ * - Login-Prompt, falls der Nutzer nicht angemeldet ist
+ * - Overlay, falls der Nutzer heute noch keinen DailySelection-Post abgesetzt hat
+ * - Feed (Liste von DailySelection), sobald der Nutzer heute selbst einen Post erstellt hat
+ * Außerdem ermöglicht es Suchanfragen in Spotify und das Abspielen von Track-Vorschauen.
+ */
 class HomeFragment : Fragment() {
 
     private var _binding: FragmentHomeBinding? = null
@@ -61,9 +68,10 @@ class HomeFragment : Fragment() {
     // Receiver to handle logout events and refresh UI
     private val logoutReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            // Re-run the posted-today check and reload feed data
+            // Wenn kein Nutzer angemeldet, zeige Login-Prompt und leere Feed
             val currentUid = FirebaseAuth.getInstance().currentUser?.uid
             if (currentUid != null) {
+                // Falls doch ein Nutzer vorhanden (z.B. nach Re-Login), überprüfe erneut, ob heute gepostet
                 feedViewModel.checkIfPostedToday(currentUid)
             } else {
                 // If no user, show login prompt and hide other containers
@@ -77,39 +85,47 @@ class HomeFragment : Fragment() {
     }
     override fun onResume() {
         super.onResume()
+        // Registriere den BroadcastReceiver für Logout-Events
         LocalBroadcastManager.getInstance(requireContext())
             .registerReceiver(logoutReceiver, IntentFilter("com.example.bejam.USER_LOGGED_OUT"))
     }
 
     override fun onPause() {
         super.onPause()
+        // Deregistriere den Receiver, sobald das Fragment pausiert
         LocalBroadcastManager.getInstance(requireContext())
             .unregisterReceiver(logoutReceiver)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        // Show login prompt if user is not authenticated
+        // Prüfe beim Anzeigen des Fragments, ob ein Nutzer angemeldet ist
         val user = FirebaseAuth.getInstance().currentUser
         if (user == null) {
+            // Zeige Login-Prompt, wenn kein Nutzer eingeloggt
             binding.loginPromptContainer.isVisible = true
             binding.backgroundContent.isVisible = false
             binding.overlayContainer.isVisible = false
             binding.loginButton.setOnClickListener {
+                // Navigiere zum Profile-Tab, um Login auszuführen
                 findNavController().navigate(R.id.navigation_profile)
             }
             return
         }
+        // Initialisiere FriendsViewModel, um Freunde und deren IDs zu beobachten
         friendsViewModel = ViewModelProvider(requireActivity())[FriendsViewModel::class.java]
 
-        // Check and toggle overlay if the user hasn't posted today
+        // Prüfe, ob der Nutzer heute schon gepostet hat
         val currentUid = FirebaseAuth.getInstance().currentUser?.uid ?: return
         feedViewModel.checkIfPostedToday(currentUid)
+        // Beobachte hasPostedToday LiveData, um Overlay bzw. Feed einzublenden
         feedViewModel.hasPostedToday.observe(viewLifecycleOwner) { posted ->
+            //Overlay (Button „Heute posten“) nur anzeigen, falls noch kein Post vorgenommen
             binding.overlayContainer.isVisible = !posted
+            // Hintergrund (Feed) anzeigen, sobald gepostet
             binding.backgroundContent.isVisible = posted
             if (posted) {
-                // load today's feed only once user has posted
+                // Sobald der Nutzer gepostet hat, lade den Feed von Freunden + eigenem Post
                 friendsViewModel.friendUids.value?.let { friendUids ->
                     val allUids = friendUids + currentUid
                     feedViewModel.observeTodayFeed(allUids)
@@ -120,22 +136,25 @@ class HomeFragment : Fragment() {
             }
         }
 
+        // Beobachte Änderungen an friendUids, um Profile zu laden und Feed zu aktualisieren
         friendsViewModel.friendUids.observe(viewLifecycleOwner) { friendUids ->
             val myUid = friendsViewModel.currentUid
             val allUids = friendUids + myUid
+            // Lade Profile der Freunde (Avatar, Anzeigename) für FeedAdapter
             friendsViewModel.loadProfilesForUids(allUids)
-            // Observe today's feed (friends + self)
+            // Beobachte Live-Feed für  heute, sobald friendUids verfügbar
             feedViewModel.observeTodayFeed(allUids)
                 .observe(viewLifecycleOwner) { list ->
                     feedAdapter.submitList(list)
                 }
         }
 
+        // Wenn ProfileMap aktualisiert wird, übergib sie an den Adapter
         friendsViewModel.profileMap.observe(viewLifecycleOwner) { map ->
             feedAdapter.setProfileMap(map)
         }
 
-        // Fehler/Erfolg Like-Feedback
+        // Like-Feedback: Zeige Toast, falls Like-Operation fehlgeschlagen
         feedViewModel.likeResult.observe(viewLifecycleOwner) { success ->
             if (!success) Toast.makeText(context, "Konnte Like nicht speichern", Toast.LENGTH_SHORT).show()
         }
@@ -147,7 +166,7 @@ class HomeFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
-        // If no user is signed in, show login prompt and skip further initialization
+        // Wenn kein Nutzer angemeldet, zeige nur Login-Prompt und beende
         val user = FirebaseAuth.getInstance().currentUser
         if (user == null) {
             binding.loginPromptContainer.isVisible = true
@@ -155,12 +174,14 @@ class HomeFragment : Fragment() {
             binding.overlayContainer.isVisible = false
             return binding.root
         }
+        // Initialisiere SpotifyAuthManager und SharedPreferences für Token
         authManager = SpotifyAuthManager(requireContext())
         val prefs = requireContext().getSharedPreferences("auth", Context.MODE_PRIVATE)
 
         // SEARCH BAR & TRACKS RECYCLERVIEW SETUP
         adapter = TrackAdapter(
             onPlayClick = { track ->
+                // Wenn Preview-URL verfügbar, starte ExoPlayer und pausiere nach 10 Sekunden
                 val url = track.preview_url
                 if (url.isNullOrEmpty()) {
                     Toast.makeText(requireContext(),
@@ -177,6 +198,7 @@ class HomeFragment : Fragment() {
                 }
             },
             onSelectClick = { track ->
+                // Wenn Nutzer einen Track auswählt, navigiere zur ShareFragment
                 val action = HomeFragmentDirections
                     .actionHomeFragmentToShareFragment(
                         track.id,
@@ -195,6 +217,7 @@ class HomeFragment : Fragment() {
         feedAdapter = FeedAdapter(
             onLikeClicked = { selection -> feedViewModel.onLikeClicked(selection) },
             onItemClick = { selection ->
+                // Beim Klick auf einen Eintrag navigiere zur Detailansicht
                 val action = HomeFragmentDirections
                     .actionHomeFragmentToSongDetailFragment(selection.id)
                 findNavController().navigate(action)
@@ -203,12 +226,14 @@ class HomeFragment : Fragment() {
         binding.feedRecyclerView.layoutManager = LinearLayoutManager(context)
         binding.feedRecyclerView.adapter = feedAdapter
 
+        // Alias für das Container-Layout der Suchergebnisse
         val searchResultsContainer = binding.searchResultsContainer
 
-        // SEARCH BAR HOOK – nur diesen Block ändern!
+        // SEARCH BAR HOOK: Text-Listener für Spotify-Suche
         binding.searchEditText.addTextChangedListener(afterTextChanged = { editable ->
             val q = editable?.toString()?.trim().orEmpty()
             if (q.length < 3) {
+                // Wenn weniger als 3 Zeichen, blendet Suchergebnis-Container aus
                 if (searchResultsContainer.visibility == View.VISIBLE) {
                     searchResultsContainer.animate()
                         .alpha(0f)
@@ -218,6 +243,7 @@ class HomeFragment : Fragment() {
                 }
                 return@addTextChangedListener
             }
+            // Ab 3 Zeichen führe Spotify-API-Aufruf aus
             lifecycleScope.launch(Dispatchers.IO) {
                 val token = prefs.getString("access_token", "") ?: ""
                 try {
@@ -225,6 +251,7 @@ class HomeFragment : Fragment() {
                     withContext(Dispatchers.Main) {
                         adapter.submitList(resp.tracks.items)
                         if (searchResultsContainer.visibility != View.VISIBLE) {
+                            // Falls noch nicht sichtbar, blende es mit Fade-In ein
                             searchResultsContainer.alpha = 0f
                             searchResultsContainer.visibility = View.VISIBLE
                             searchResultsContainer.animate().alpha(1f).setDuration(180).start()

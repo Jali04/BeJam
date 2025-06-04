@@ -12,21 +12,34 @@ import com.example.bejam.databinding.ItemTopSongBinding
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 
+/**
+ * Adapter für die Anzeige der Top-Songs in der Profilansicht.
+ * Jeder Eintrag zeigt das Album-Artwork, den Song-Titel und den Künstlernamen.
+ * Klickt man auf einen Eintrag, wird die Spotify-App geöffnet und der Track angespielt.
+ *
+ * @param tracks Liste der Track-Objekte, die angezeigt werden.
+ */
 class TopSongsAdapter(
     private val tracks: List<Track>
 ) : RecyclerView.Adapter<TopSongsAdapter.VH>() {
 
+    /**
+     * ViewHolder, der die Views eines einzelnen Top-Song-Eintrags hält.
+     * Bindet Track-Daten an das Item-Layout und färbt die Top-3-Einträge entsprechend ein.
+     */
     inner class VH(private val b: ItemTopSongBinding)
         : RecyclerView.ViewHolder(b.root) {
         fun bind(track: Track, position: Int) {
+            // Songtitel und Künstlertext setzen
             b.textSongTitle.text = track.name
             b.textSongArtist.text = track.artists.joinToString { it.name }
+            // Album-Cover via Glide laden
             Glide.with(b.root)
                 .load(track.album.images.firstOrNull()?.url)
                 .placeholder(R.drawable.placeholder_profile)
                 .into(b.imageSongArt)
 
-            // Highlight top three positions: gold, silver, bronze
+            // // Hintergrund und Textfarbe je nach Platzierung der Top 3 ändern
             val card = b.root as CardView
             when (position) {
                 0 -> {
@@ -90,7 +103,7 @@ class TopSongsAdapter(
         return VH(binding)
     }
 
-    override fun getItemCount() = tracks.size
+    override fun getItemCount() = tracks.size // Anzahl der darzustellenden Tracks
     override fun onBindViewHolder(holder: VH, position: Int) =
         holder.bind(tracks[position], position)
 }

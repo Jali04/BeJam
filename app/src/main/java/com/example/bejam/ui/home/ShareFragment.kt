@@ -16,9 +16,16 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * ShareFragment ermöglicht es dem Nutzer, einen ausgewählten Spotify-Track
+ * als täglichen „DailySelection“-Beitrag zu posten. Dabei wird sichergestellt,
+ * dass jeder Nutzer pro Tag nur einen einzigen Beitrag veröffentlichen kann.
+ */
 class ShareFragment : Fragment() {
     private var _binding: FragmentShareBinding? = null
     private val binding get() = _binding!!
+
+    // Übergabewerte aus der Navigation: trackId, trackName, artistNames und imageUrl
     private val args: ShareFragmentArgs by navArgs()
 
     override fun onCreateView(
@@ -28,28 +35,31 @@ class ShareFragment : Fragment() {
     }.root
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        // Setze UI-Elemente mit den Werten aus den NavArgs
         binding.trackName.text = args.trackName
         binding.artistNames.text = args.artistNames
         Glide.with(this)
             .load(args.imageUrl)
             .into(binding.albumImage)
 
+        // Hole aktuellen Firebase-User
         val firebaseUser = FirebaseAuth.getInstance().currentUser
         if (firebaseUser != null) {
+            // Erzeuge Dokument-Id für „today’s post“ im Format "<userId>_yyyy-MM-dd"
             val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
             val docId = "${firebaseUser.uid}_$today"
-            // Check if already posted today
+            // Prüfe, ob der Nutzer heute bereits gepostet hat
             Firebase.firestore.collection("daily_selections")
                 .document(docId)
                 .get()
                 .addOnSuccessListener { doc ->
                     if (doc.exists()) {
-                        // Already posted today, disable post button
+                        // Falls bereits existiert: Button deaktivieren und Hinweis anzeigen
                         binding.postButton.isEnabled = false
                         binding.postButton.text = "Du hast heute schon einen Song gepostet!"
                         Toast.makeText(requireContext(), "Du hast heute schon einen Song gepostet!", Toast.LENGTH_LONG).show()
                     } else {
-                        // Enable post button
+                        // Noch kein Post heute: Button aktivieren
                         binding.postButton.isEnabled = true
                         binding.postButton.text = "Post"
                         binding.postButton.setOnClickListener {
@@ -58,7 +68,7 @@ class ShareFragment : Fragment() {
                     }
                 }
                 .addOnFailureListener {
-                    // In case of error, allow posting
+                    // Bei Fehlern (z.B. Netzwerkausfall) trotzdem erlauben, zu posten
                     binding.postButton.isEnabled = true
                     binding.postButton.text = "Post"
                     binding.postButton.setOnClickListener {
@@ -68,10 +78,15 @@ class ShareFragment : Fragment() {
         }
     }
 
+    /**
+     * Legt das DailySelection-Objekt an und speichert es in Firestore.
+     * Anschließend wird der Nutzer per Toast informiert und zum vorherigen Screen zurückgebracht.
+     */
     private fun postSong(docId: String) {
         val comment = binding.commentEditText.text.toString().trim()
         val firebaseUser = FirebaseAuth.getInstance().currentUser
         if (firebaseUser != null) {
+            // Erzeuge DailySelection mit allen nötigen Feldern
             val selection = DailySelection(
                 id = docId,
                 userId = firebaseUser.uid,
@@ -84,16 +99,19 @@ class ShareFragment : Fragment() {
                 timestamp = System.currentTimeMillis()
             )
 
+            // Speichere in Firestore
             Firebase.firestore.collection("daily_selections")
                 .document(docId)
                 .set(selection)
                 .addOnSuccessListener {
+                    // Bei Erfolg: Toast, Button deaktivieren und zurück navigieren
                     Toast.makeText(requireContext(), "Posted “${args.trackName}”!", Toast.LENGTH_SHORT).show()
                     binding.postButton.isEnabled = false
                     binding.postButton.text = "Du hast heute schon einen Song gepostet!"
                     findNavController().popBackStack()
                 }
                 .addOnFailureListener {
+                    // Bei Fehler: Fehlermeldung per Toast
                     Toast.makeText(requireContext(), "Failed to post selection.", Toast.LENGTH_SHORT).show()
                 }
         }

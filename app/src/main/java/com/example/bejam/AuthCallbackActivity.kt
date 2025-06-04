@@ -22,21 +22,32 @@ import okhttp3.*
 import org.json.JSONObject
 import java.io.IOException
 
+/**
+ * Diese Activity wird aufgerufen, nachdem Spotify den OAuth-Code zurückgegeben hat.
+ * Sie tauscht den Authorization-Code gegen Access- und Refresh-Token aus
+ * und meldet den User in Firebase an bzw. legt ggf. ein neues Firestore-Profil an.
+ */
 class AuthCallbackActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Aus dem Intent holen wir den "code" (wenn erfolgreicher Login) oder "error"
         val code = intent.getStringExtra("code")
         val error = intent?.data?.getQueryParameter("error")
+
+        // Falls Spotify einen Fehler zurückgegeben hat, zeigen wir einen Toast und beenden.
         if (error != null) {
             Toast.makeText(this, "Login abgelehnt: $error", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
 
+        // Der "code_verifier" wurde zuvor in SharedPreferences gespeichert
         val codeVerifier = getSharedPreferences("auth", MODE_PRIVATE)
             .getString("code_verifier", null)
+
+        // Wenn Code oder Verifier fehlen, brechen wir ab.
         if (code == null || codeVerifier == null) {
             Toast.makeText(this, "Fehlender Code oder Verifier", Toast.LENGTH_SHORT).show()
             finish()
@@ -47,6 +58,9 @@ class AuthCallbackActivity : Activity() {
         exchangeToken(code, codeVerifier)
     }
 
+    /**
+     * Tauscht den Authorization-Code gegen Access-Token und Refresh-Token bei Spotify.
+     */
     private fun exchangeToken(code: String, codeVerifier: String) {
         val client = OkHttpClient()
         val requestBody = FormBody.Builder()
@@ -68,6 +82,7 @@ class AuthCallbackActivity : Activity() {
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
+                // Network-Fehler beim Token-Request → Fehlermeldung anzeigen
                 runOnUiThread {
                     Toast.makeText(this@AuthCallbackActivity, "Fehler bei Token-Request", Toast.LENGTH_SHORT).show()
                     Log.e("SPOTIFY", "Token-Abruf fehlgeschlagen: ${e.message}")
@@ -78,6 +93,7 @@ class AuthCallbackActivity : Activity() {
             override fun onResponse(call: Call, response: Response) {
                 val responseData = response.body?.string()
                 if (response.isSuccessful && responseData != null) {
+                    // Parsen der JSON-Antwort
                     val json = JSONObject(responseData)
                     val accessToken = json.getString("access_token")
                     val refreshToken = json.getString("refresh_token")
