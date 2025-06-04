@@ -33,9 +33,7 @@ class SongDetailFragment : Fragment() {
     private var spotifySongId: String? = null
     private var currentSelection: DailySelection? = null
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
-    ): View {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentSongDetailBinding.inflate(inflater, container, false)
 
         // Argument holen

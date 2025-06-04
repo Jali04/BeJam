@@ -8,12 +8,12 @@
 
     <item
         android:id="@+id/navigation_friends"
-        android:icon="@drawable/ic_dashboard_black_24dp"
+        android:icon="@drawable/friends"
         android:title="@string/title_friends" />
 
     <item
         android:id="@+id/navigation_profile"
-        android:icon="@drawable/circle_bg"
+        android:icon="@drawable/placeholder_profile"
         android:title="@string/title_profile" />
 
 </menu>

@@ -7,5 +7,4 @@ package com.example.bejam.data.model
 
 data class TopTracksResponse(
     val items: List<Track>          // Die Liste der Top-Tracks als "Track"-Objekte
-
 )

@@ -24,8 +24,8 @@ class FriendRepository(context: Context) {
 
     /**
      * Gibt einen Live-Stream (Flow) aller Freunde aus der lokalen DB zurück.
-     */
-    fun getAllFriends(): Flow<List<Friend>> = dao.getAllFriends()
+
+    fun getAllFriends(): Flow<List<Friend>> = dao.getAllFriends()*/
 
     //Fügt einen neuen Freund hinzu (sowohl bei Spotify als „Folge“ als auch lokal speichern)
     suspend fun addFriend(friendUid: String): Boolean = withContext(Dispatchers.IO) {

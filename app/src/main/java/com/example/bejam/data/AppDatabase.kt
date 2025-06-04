@@ -21,8 +21,7 @@ abstract class AppDatabase : RoomDatabase() {
         // Singleton-Instanz (stellt sicher, dass es nur eine Datenbankinstanz gibt)
         @Volatile private var INSTANCE: AppDatabase? = null
 
-        fun getInstance(ctx: Context): AppDatabase =
-            INSTANCE ?: synchronized(this) {
+        fun getInstance(ctx: Context): AppDatabase = INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
                     ctx.applicationContext,
                     AppDatabase::class.java,           // Welche DB-Klasse

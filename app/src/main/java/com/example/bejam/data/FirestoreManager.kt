@@ -153,7 +153,7 @@ object FirestoreManager {
 
     /**
      * Fügt die userId zur Like-Liste eines DailySelection-Posts hinzu.
-     */
+
     fun likeSelection(selectionId: String, userId: String): Task<Void> {
         return fs.collection(SEL)
             .document(selectionId)
@@ -167,7 +167,7 @@ object FirestoreManager {
         return fs.collection(SEL)
             .document(selectionId)
             .update("likes", FieldValue.arrayRemove(userId))
-    }
+    }*/
 
     /**
      * Löscht alle DailySelections eines Users, die heute erstellt wurden.
