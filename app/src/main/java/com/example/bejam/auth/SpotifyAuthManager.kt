@@ -54,11 +54,10 @@ class SpotifyAuthManager(private val context: Context) {
         prefs.edit().putString("code_verifier", codeVerifier).apply()
 
         // 3) Starte lokalen HTTP-Server
-        if (server == null) {
-            server = LocalHttpServer(context)
-            server?.start()
-            Log.d("SPOTIFY", "Lokaler HTTP-Server gestartet auf Port 8888")
-        }
+        server?.stop()
+        server = LocalHttpServer(context)
+        server?.start()
+        Log.d("SPOTIFY", "Lokaler HTTP-Server gestartet auf Port 8888")
 
         // 4) Die vollständige Auth-URL mit allen Query-Parametern aufbauen
         val authUri = Uri.parse(authEndpoint).buildUpon()
@@ -93,6 +92,10 @@ class SpotifyAuthManager(private val context: Context) {
             .remove("expiration_time")
             .remove("code_verifier")
             .apply()
+
+        // 3) Lokalen HTTP-Server stoppen, falls er noch läuft
+        server?.stop()
+        server = null
 
         // App-intern Logout kommunizieren
         val intent = Intent("com.example.bejam.USER_LOGGED_OUT")
@@ -187,7 +190,7 @@ class SpotifyAuthManager(private val context: Context) {
     }
 
     // Server lauscht auf Port 8888 und empfängt Anfrage an /callback mit code als URL-Parameter
-    class LocalHttpServer(private val context: Context) : NanoHTTPD(8888) {
+    inner class LocalHttpServer(private val context: Context) : NanoHTTPD(8888) {
         override fun serve(session: IHTTPSession): Response {
             val uri = session.uri
             val params = session.parameters
@@ -202,6 +205,10 @@ class SpotifyAuthManager(private val context: Context) {
                     putExtra("code", code)
                 }
                 context.startActivity(intent)
+
+                // Server wird nicht mehr benötigt
+                stop()
+                server = null
 
                 return newFixedLengthResponse(
                     Response.Status.OK,
